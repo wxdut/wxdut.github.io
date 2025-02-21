@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" sizes="32x32" href="asset/img/favicon.png" />
+    <link rel="shortcut icon" href="asset/img/favicon.png" type="image/png" />
+    <link href="atom.xml" rel="alternate" title="专业点" type="application/atom+xml">
+    <title>
+         GLSL-语法基础 - 专业点 
+    </title>
+    <script src="asset/js/jquery-3.3.1.min.js"></script>
+    <script src="asset/js/popper.min.js"></script>
+    <script src="asset/js/darkreader.min.js"></script>
+    <link href="asset/css/mweb-github.css" rel="stylesheet" type="text/css">
+    <link href="asset/css/style.css" rel="stylesheet" type="text/css">
+    <script src="asset/highlightjs/highlight.pack.js"></script>
+    <link href="asset/highlightjs/styles/github.css" media="screen, projection" rel="stylesheet" type="text/css">
+    <link href="asset/bootstrap-4.2.1-dist/css/bootstrap.min.css" rel="stylesheet" type="text/css">
+    <script src="asset/bootstrap-4.2.1-dist/js/bootstrap.min.js"></script>
+    <link href="asset/bootstrap-select-1.13.2/css/bootstrap-select.min.css" rel="stylesheet" type="text/css">
+    <script src="asset/bootstrap-select-1.13.2/js/bootstrap-select.min.js"></script>
+
+    <script>
+        hljs.initHighlightingOnLoad();
+        DarkReader.enable();
+    </script>
+    <!--[if lt IE 9]>
+      <script src="asset/js/html5shiv.min.js"></script>
+    <![endif]-->
+</head>
+
+<body>
+    <div class="blog-masthead">
+        <div class="container">
+            <nav class="blog-nav">
+                
+                    <a class="blog-nav-item" id="/" href="/">博客</a> 
+                
+                    <a class="blog-nav-item" id="archives.html" href="archives.html">归档</a> 
+                
+                    <a class="blog-nav-item" id="tools.html" href="tools.html">工具</a> 
+                
+                    <a class="blog-nav-item" id="about.html" href="about.html">关于</a> 
+                
+            </nav>
+        </div>
+    </div>
+    
+
+    <script type="text/javascript" src="asset/js/header.html.js"></script> <script type="text/javascript">
+$(function() {
+    $('15271720123130.html').addClass('active');
+});
+</script>
+<div class="container markdown-body" id="content-wrap">
+    <div class="row">
+        <div class="col-sm-9 blog-main">
+            <div class="blog-post">
+                <h2 class="blog-post-title">GLSL-语法基础</h2>
+                <p class="blog-post-meta">2018/5/24 &nbsp;posted in  
+                    <a class='category' href='%E6%B8%B2%E6%9F%93.html'>渲染</a>&nbsp;   
+                </p>
+                <div class="content-responsive" id="post-content">
+                    <span id="more"></span><!-- more -->
+<h3><a id="3-1%E5%AD%97%E7%AC%A6%E9%9B%86" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>3.1 字符集</h3>
+<p>GLSL用到的字符集是<a href="https://www.wikiwand.com/en/ASCII">ASCII</a>码的子集，主要包含下面的几部分：</p>
+<ol>
+<li>字母 a-z，A-Z，以及下划线“_”。</li>
+<li>数字 0-9</li>
+<li>符号 .+-/*%&lt;&gt;[]{}()^|$~=!:;,?</li>
+<li>预处理器专用符号 #</li>
+<li>空白符，包括各种回车、换行、TAB等等</li>
+</ol>
+<p>该字符集不包含反斜杠**，也不包含任何字符或字符串。<br />
+一般来说，GLSL是大小写敏感的。</p>
+<h3><a id="3-2-source-strings" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>3.2 Source Strings</h3>
+<p>不管是Vertex Shader还是Fragment Shader，其实都有一段对应的代码，称为<em>Source Strings</em>，它包含多个string，每个string一行。</p>
+<p>对于本版本的GLSL来说，每个Shader对应着一个可编程单元，一个Vertex Shader对应着一个Fragment Shader，二者连接起来组成一个<em>program</em>。</p>
+<h3><a id="3-3%E7%BC%96%E8%AF%91%E7%9A%84%E9%80%BB%E8%BE%91%E9%98%B6%E6%AE%B5" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>3.3 编译的逻辑阶段</h3>
+<p>编译程序使用C++标准的一个子集。<br />
+Vertex Shader和Fragment Shader在各自编译之后连接到一起。</p>
+<p>编译的步骤如下：</p>
+<ol>
+<li>从*.glsl<em>文件中得到</em>Source String*。</li>
+<li>Source Strings被转成一系列的预处理<em>Token</em>，这些<em>Token</em>包括预处理行号、预处理标识、预处理操作。注释被替换成空格。保留换行。</li>
+<li>预处理器执行。执行命令，执行宏扩展。</li>
+<li>预处理<em>Token</em>被转换成<em>Token</em>。</li>
+<li>空白符、换行符被丢弃。</li>
+<li>根据GLSL语法进行语法分析。</li>
+<li>根据GLSL语义规则进行语义检查。</li>
+<li>Vertex Shader和Fragment Shader连接到一起，丢弃没有被二者同时使用的<em>varying</em>变量。</li>
+<li>生成二进制文件。</li>
+</ol>
+<h3><a id="3-4%E9%A2%84%E5%A4%84%E7%90%86%E5%99%A8" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>3.4 预处理器</h3>
+<p>作为编译的其中一个步骤，预处理器会处理source strings。</p>
+<p>预处理指令以*#<em>开头，</em>#*号之前不能有除了空白字符之外的任何字符。每一个指令独占一行。<br />
+预处理指令只能使用上面列出的指令，使用其他未定义指令会报错。</p>
+<p>完整的预处理器指令如下：</p>
+<pre><code class="language-plain_text">#
+#define
+#undef
+#if
+#ifdef
+#ifndef
+#else
+#elif
+#endif
+#error
+#pragma
+#extension
+#version
+#line
+</code></pre>
+<p>下面的这个操作符也是合法的：</p>
+<pre><code class="language-plain_text">defined
+</code></pre>
+<h4><a id="define-and-undef" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>#define and #undef</h4>
+<p>这两个和C++中的用法完全一样，不做过多说明</p>
+<h4><a id="if-ifdef-ifndef-else-elif-and-endif" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>#if, #ifdef, #ifndef, #else, #elif, and #endif</h4>
+<p>这几个也基本和C++的用法一样，不过有下面几点差别。</p>
+<pre><code class="language-plain_text">1. #if和#elif只能判断int类型，0为false，非0为true
+2. 不支持string类型
+</code></pre>
+<h4><a id="pragma" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>#pragma</h4>
+<p>编译指示。用来控制编译器的一些行为。</p>
+<pre><code class="language-plain_text">#pragma optimize(on)
+#pragma optimize(off)
+</code></pre>
+<p>在开发和调试时可以设置为off，默认设为on。</p>
+<pre><code class="language-plain_text">#pragma debug(on)
+#pragma debug(off)
+</code></pre>
+<p>在开发和调试时可以打开<em>debug</em>选项，以便获取更多的调试信息。默认设为off。</p>
+<h4><a id="version" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>#version</h4>
+<p>每一个编译单元都要指定GLSL的版本，如下：</p>
+<pre><code class="language-plain_text">#version number
+</code></pre>
+<p>一般默认即可。这个命令必须放到编译单元的最前面，其前面只能有注释或空白，不能有其他字符。</p>
+<h4><a id="extension" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>#extension</h4>
+<p>如果想使用GLGL默认不支持的操作，则必须启用对应的扩展，启用一个扩展可以使用下面的命令：</p>
+<pre><code class="language-plain_text">#extension : behavior
+#extension all : behavior
+</code></pre>
+<p>其中，<em>extension_name</em>是扩展的名称，<em>all</em>是指所有的编译器支持的扩展。<br />
+<em>behavior</em>是指对该扩展的具体操作。比如启用、禁用等等。详情如下：</p>
+<table>
+<thead>
+<tr>
+<th>behavior</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>require</td>
+<td>启用该扩展。如果不支持，则报错。</td>
+</tr>
+<tr>
+<td>enable</td>
+<td>启用该扩展。如果不支持，则会警告。extension_name是all的时候会报错。</td>
+</tr>
+<tr>
+<td>warn</td>
+<td>启用该扩展。但是会检测到所有使用该扩展的地方，提出警告。</td>
+</tr>
+<tr>
+<td>disable</td>
+<td>禁用该扩展。如果该扩展不被支持，则提出警告。</td>
+</tr>
+</tbody>
+</table>
+<p>默认是不会启用任何扩展，就像是执行了下面的命令：</p>
+<pre><code class="language-plain_text">#extension all : disable
+</code></pre>
+<p>对于每一个被支持的扩展，都有一个对应的宏定义，我们可以用它来判断编译器是否支持该扩展。</p>
+<pre><code class="language-plain_text">#ifdef OES_extension_name
+#extension OES_extension_name : enable
+    // code that requires the extension
+#else
+    // alternative code
+#endif
+</code></pre>
+<h4><a id="%E4%B8%80%E4%BA%9B%E9%A2%84%E5%AE%9A%E4%B9%89%E7%9A%84%E5%8F%98%E9%87%8F" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>一些预定义的变量</h4>
+<p>除此之外，还预定义了一些变量：</p>
+<ul>
+<li><strong>LINE</strong> ：int类型，当前的行号，也就是在Source String中是第一行</li>
+<li><strong>FILE</strong> ：int类型，当前Source String的唯一ID标识</li>
+<li><strong>VERSION</strong> ：int类型，GLGL的版本</li>
+<li>GL_ES ：对于嵌入式系统（Embed System，简称 ES），它的值为1，否则为0</li>
+</ul>
+<p>所有的以两个下划线*__*开头的变量都是系统保留的，不允许私自定义和篡改。</p>
+<h3><a id="%E6%93%8D%E4%BD%9C%E7%AC%A6" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>操作符</h3>
+<table>
+<thead>
+<tr>
+<th>优先级</th>
+<th>类型</th>
+<th>操作符</th>
+<th>结合性</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>括号</td>
+<td>()</td>
+<td>无</td>
+</tr>
+<tr>
+<td>2</td>
+<td>一元运算符</td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<div>defined + - ~ !</div>
+<p>| 从右往左 |<br />
+| 3 | 乘除法 | * / % | 从左往右 |<br />
+| 4 | 加减法 | + - | 从左往右 |<br />
+| 5 | 位运算 移位 | &lt;&lt; &gt;&gt; | 从左往右 |<br />
+| 6 | 大小关系 | &lt; &gt; &lt;= &gt;= | 从左往右 |<br />
+| 7 | 相等性判断 | == != | 从左往右 |<br />
+| 8 | 位运算 与 | &amp; | 从左往右 |<br />
+| 9 | 位或算 非 | ^ | 从左往右 |<br />
+| 10 | 位或算 或 | | | 从左往右 |<br />
+| 11 | 逻辑与 | &amp;&amp; | 从左往右 |<br />
+| 12 | 逻辑或 | || | 从左往右 |</p>
+<p><em>defined</em>操作符一般有下面两种使用方式：</p>
+<pre><code class="language-plain_text">defined identifier
+defined ( identifier )
+</code></pre>
+<h3><a id="%E6%B3%A8%E9%87%8A" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>注释</h3>
+<p>和Java里的注释没啥区别。主要有下面两种注释方法。</p>
+<pre><code class="language-plain_text">// 我是注释
+/* 我是注释 */
+</code></pre>
+<h3><a id="tokens" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>Tokens</h3>
+<p>Source String会被转成一系列的<em>Tokens</em>。可以这么理解，代码中的每一个单词都属于某一种<em>Token</em>。比如关键词、数字、变量等等。GLSL中，<em>Token</em>主要有下面几种：</p>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>解释</th>
+<th>举例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>keyword</td>
+<td>关键词</td>
+<td>if elif ...</td>
+</tr>
+<tr>
+<td>identifier</td>
+<td>标识符</td>
+<td>自定义的函数名、变量名 ...</td>
+</tr>
+<tr>
+<td>integer-constant</td>
+<td>int常量</td>
+<td>1 2 3 ...</td>
+</tr>
+<tr>
+<td>float-constant</td>
+<td>float常量</td>
+<td>1.1 1.2 1.3 ...</td>
+</tr>
+<tr>
+<td>operator</td>
+<td>操作符</td>
+<td>+ - * / ...</td>
+</tr>
+</tbody>
+</table>
+<h3><a id="%E5%85%B3%E9%94%AE%E8%AF%8D" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>关键词</h3>
+<p>列举一下GLSL中的关键词，这些全部是系统保留的，不可私自篡改。</p>
+<pre><code class="language-plain_text">attribute const uniform varying
+break continue do for while
+if else
+in out inout
+float int void bool true false
+lowp mediump highp precision invariant
+discard return
+mat2 mat3 mat4
+vec2 vec3 vec4 ivec2 ivec3 ivec4 bvec2 bvec3 bvec4
+sampler2D samplerCube
+struct
+</code></pre>
+<p>下面的这些也被系统预留了，使用它们会报错。</p>
+<pre><code class="language-plain_text">asm
+class union enum typedef template this packed
+goto switch default
+inline noinline volatile public static extern external interface flat
+long short double half fixed unsigned superp
+input output
+hvec2 hvec3 hvec4 dvec2 dvec3 dvec4 fvec2 fvec3 fvec4
+sampler1D sampler3D
+sampler1DShadow sampler2DShadow
+sampler2DRect sampler3DRect sampler2DRectShadow
+sizeof cast
+namespace using
+</code></pre>
+<p>除此之外，所有的以&quot;<strong>&quot;开头的变量全部是预留的，自定义的变量不能以“</strong>”开头。</p>
+<h3><a id="%E6%A0%87%E8%AF%86%E7%AC%A6" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>标识符</h3>
+<p>标识符其实就是指用户自定义的变量名、函数名、结构体名等等。</p>
+<p>变量名可以由下面的字符组成：</p>
+<pre><code class="language-plain_text">_ a b c d e f g h i j k l m n o p q r s t u v w x y z
+A B C D E F G H I J K L M N O P Q R S T U V W X Y Z
+0 1 2 3 4 5 6 7 8 9
+</code></pre>
+<p>用户可以随便定义标识符，但是不能以*gl_<em>开头，因为以</em>gl_*开头的都是系统预留的。</p>
+
+                </div>
+                <div class="content-responsive post-footer">
+                    <blockquote>
+                        转载请注明出处：<a href="https://wxdut.com/15271720123130.html">GLSL-语法基础 - 专业点</a>
+                        <br><br>欢迎关注我的公众号<br><br>
+                        <img src="media/15196482316286/扫码_搜索联合传播样式-标准色版.png">
+                    </blockquote>
+                    <!-- <blockquote>我的博客会及时同步到腾讯云+社区，邀请大家一同入驻：
+                        <br><a href="https://cloud.tencent.com/developer/support-plan?invite_code=mqbbongvgxmp" target="__blank">https://cloud.tencent.com/developer/support-plan?invite_code=mqbbongvgxmp</a>
+                    </blockquote> -->
+                </div>
+            </div>
+            <!-- /.blog-post -->
+        </div>
+        <!-- /.blog-main -->
+        <!-- slider start --> <div class="col-sm-3 blog-sidebar">
+    <!-- <div class="sidebar-module">
+        <h4>科学上网</h4>
+        <a href="http://order.yizhihongxing2017.com/aff.php?aff=9247" target="_blank">
+            <img src="https://cdn.wxdut.com/asset/img/yzhx_232_215.jpg" >
+        </a>
+    </div> -->
+    <div class="sidebar-module">
+        <h4>分类</h4>
+        
+            <a href="%E8%B7%A8%E5%B9%B3%E5%8F%B0.html">跨平台&nbsp;(4)</a><br>
+        
+            <a href="iOS.html">iOS&nbsp;(14)</a><br>
+        
+            <a href="Android.html">Android&nbsp;(2)</a><br>
+        
+            <a href="%E6%B8%B2%E6%9F%93.html">渲染&nbsp;(9)</a><br>
+        
+            <a href="%E9%9F%B3%E8%A7%86%E9%A2%91.html">音视频&nbsp;(2)</a><br>
+        
+            <a href="%E6%95%88%E7%8E%87%E6%8F%90%E5%8D%87.html">效率提升&nbsp;(4)</a><br>
+        
+            <a href="%E5%85%B6%E4%BB%96.html">其他&nbsp;(1)</a><br>
+        
+    </div>
+    <div class="sidebar-module" id="sidebar-recent-article">
+        <h4>最近文章</h4>  
+         <a href="16887976127793.html">Android so 动态库相关知识</a>
+            <br />   
+         <a href="16886092802260.html">浅谈大前端跨端方案</a>
+            <br />   
+         <a href="16826065078832.html">如何把家里宽带配置为云服务器</a>
+            <br />   
+         <a href="16788697947776.html">iOS 内存分析 - Allocations</a>
+            <br />   
+         <a href="16782743400583.html">XCode Instruments 使用</a>
+            <br />   
+         <a href="16749127493537.html">LLDB - 源码调试工具</a>
+            <br />   
+         <a href="16748972547111.html">浅谈 C/C++ 编译流程和常见编译器</a>
+            <br />   
+         <a href="16729723756811.html">iOS framework 静态库相关知识</a>
+            <br />   
+         <a href="16705731655475.html">CMake 实用指南</a>
+            <br />   
+         <a href="16680671661314.html">一分钟下载最新 XCode</a>
+            <br />   
+          
+          
+          
+          
+          
+          
+          
+          
+          
+         
+    </div>
+    <div class="sidebar-module">
+        <h4>推荐</h4>
+        <a href="https://wxdut.com/world">
+            <img src="https://qiniu.wxdut.com/mweb/16645116745782.jpg">
+        </a>
+    </div>
+    <div class="sidebar-module sidebar-toc" id="sidebar-toc" style="display: none;">
+        <h4>目录</h4>
+        <div id="toc" style="margin-left: 0em;"></div>
+    </div>
+    <div class="sidebar-module">
+        <h4>公众号推荐</h4>
+        欢迎关注我的公众号<br>一起愉快的交流。<br><br>
+
+        <img src="media/15196482316286/扫码_搜索联合传播样式-白色版.png">
+    </div>
+</div>
+<!-- /.blog-sidebar -->
+</div>
+<!-- /.row -->
+</div>
+<!-- /.container --> <link rel="stylesheet" href="asset/gitalk/gitalk.css">
+<script src="asset/gitalk/gitalk.min.js"></script>
+<!-- gitalk -->
+<div class="container markdown-body" id="gitalk-container" ></div>
+
+<!-- footer -->
+<footer class="blog-footer">
+    <p>
+        ©2022 <a target="_blank" href="http://wxdut.com">Wxdut.com</a>. All rights reserved.
+    </p>
+    <p>
+        <a href="https://beian.miit.gov.cn/">粤ICP备17041161号-1</a>
+    </p>
+    <p>
+        <a href="#">Back to top</a>
+    </p>
+</footer>
+<!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
+<script src="asset/js/ie10-viewport-bug-workaround.js"></script>
+<script type="text/javascript" src="asset/js/footer.html.js"></script>
+<!-- MWeb 会把下面这一行注释换成 section-chart-support.html 的内容，我只能说操作太骚。。 -->
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="asset/prism.js"></script>
+
+  
+</body>
+
+</html>

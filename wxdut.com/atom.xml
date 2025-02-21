@@ -1,0 +1,2363 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <title>
+        <![CDATA[专业点]]>
+    </title>
+    <link href="https://wxdut.com/atom.xml" rel="self" />
+    <link href="https://wxdut.com/" />
+    <updated>2025-02-22T03:04:00+08:00</updated>
+    <id>https://wxdut.com/</id>
+    <author>
+        <name>
+            <![CDATA[]]>
+        </name>
+    </author>
+    <generator uri="http://www.coderforart.com/">CoderForArt</generator>
+    
+    <entry>
+        <title type="html">
+            <![CDATA[Android so 动态库相关知识]]>
+        </title>
+        <link href="https://wxdut.com/16887976127793.html" />
+        <updated>2023-07-08T14:26:52+08:00</updated>
+        <id>https://wxdut.com/16887976127793.html</id>
+        <content type="html">
+            <![CDATA[
+<p>跨端开发时避免不了在安卓端使用动态库，本文总结和介绍动态库的结构、常见分析工具的使用等等。</p>
+<span id="more"></span><!-- more -->
+<p>安卓小游戏大量用到了动态库，在日常工作中逐步对动态库有了较多的接触和理解。但是总感觉不够系统，周末没事总结一下，作为技术沉淀，也希望能给大家带来一些帮助。</p>
+<h2><a id="so%E4%B8%8E-elf" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>so 与 ELF</h2>
+<p>安卓动态库 <code>so</code> 是 一种 <code>ELF（Executable and Linkable Format）</code>格式的文件，常用于基于 Unix 的机型，比如 <code>Linux</code>，<code>BSD</code>，<code>Android</code> 等等。</p>
+<p>在安卓上的动态库格式为 <code>libxxx.so</code>。</p>
+<h2><a id="%E6%AE%B5%EF%BC%88sections%EF%BC%89" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>段（Sections）</h2>
+<p><code>so</code> 包含了若干个段，每个段记录了某一个维度的信息。查看一些 <code>so</code> 的信息，就是查看对应的段里的信息。这里列一下主要的段，以及常用的段分析工具。</p>
+<p>我们可以使用 <code>readelf</code> 来查看某个 <code>so</code> 的段信息。</p>
+<pre><code class="language-plain_text">readelf -S libxxx.so
+</code></pre>
+<p>然后使用下面的方式查看这个段的详细信息。</p>
+<pre><code class="language-plain_text">readelf -x .段名字 libxxx.so
+</code></pre>
+<p>不同的 <code>so</code> 可能包含的段也不相同，这里介绍一下常用的需要理解的段。</p>
+<h3><a id="dynsym%E5%8A%A8%E6%80%81%E7%AC%A6%E5%8F%B7%E6%AE%B5-symtab%E5%B8%B8%E8%A7%84%E7%AC%A6%E5%8F%B7%E6%AE%B5-debug%EF%BC%88-dwarf%E6%A0%BC%E5%BC%8F%E7%9A%84%E8%B0%83%E8%AF%95%E4%BF%A1%E6%81%AF%EF%BC%89" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>.dynsym 动态符号段 &amp; .symtab 常规符号段 &amp; .debug_*（DWARF 格式的调试信息）</h3>
+<p><code>so</code> 里有两个段和符号相关，分别是常规符号段和动态符号段。平时开发对这两个段的依赖比较多。</p>
+<h4><a id="dynsym%E5%8A%A8%E6%80%81%E7%AC%A6%E5%8F%B7%E6%AE%B5" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>.dynsym 动态符号段</h4>
+<p>动态符号是指被暴露出去的符号，其他 <code>so</code> 链接本 <code>so</code> 后可以访问这些符号。这些符号通常比较少，没有必要暴露的符号要隐藏掉，避免外部滥用，也降低耦合度。</p>
+<p>隐藏某个符号可以在源码里给函数加上 <code>__attribute__((visibility(&quot;hidden&quot;)))</code>。</p>
+<p>也可以给 <code>gcc</code> 增加编译参数来默认隐藏所有符号：<code>-fvisibility=hidden</code>，当然也可以使用 <code>version-script</code> 控制符号导出。</p>
+<p>至于查看工具，可以使用 <code>nm -D libxx.so</code> 来查看所有动态符号。<br />
+<img src="media/16887976127793/16887997135435.jpg" alt="" /></p>
+<h4><a id="symtab%E5%B8%B8%E8%A7%84%E7%AC%A6%E5%8F%B7%E6%AE%B5" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>.symtab 常规符号段</h4>
+<p>这个符号段里记录着所有符号，包括暴露的和未暴露的，常规符号表是动态符号表的超集。常规符号表里的非动态符号都是本地符号，其他 <code>so</code> 无法访问和调用这些符号，通常来讲都是用来调试和堆栈还原的。</p>
+<p>为了减小包体积和避免符号信息外泄，在打包 <code>release apk</code> 的时候通常会 <code>strip</code> 掉常规符号表，并把没有 <code>strip</code> 的库上传到云端。当应用发生闪退的时候，我们可以根据堆栈里的地址信息去云端包含常规符号表的库里反查对应的函数和行号信息，以便于定位问题。</p>
+<p>我们可以通过 <code>nm libxx.so</code> 来查看常规符号表。<br />
+<img src="media/16887976127793/16887998971171.jpg" alt="" /></p>
+<h4><a id="debug%EF%BC%88-dwarf%E6%A0%BC%E5%BC%8F%E7%9A%84%E8%B0%83%E8%AF%95%E4%BF%A1%E6%81%AF%EF%BC%89" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>.debug_*（DWARF 格式的调试信息）</h4>
+<p>顾名思义，存储着调试信息，格式为 <a href="16643337564362.html">DWARF</a>。</p>
+<p>可以通过 <code>addr2line</code> (路径为<code>ndk/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-addr2line</code>）反查某个符号的函数名和行号，都是根据这些 <code>.debug_*</code> 里的信息查出的，这样我们就可以很轻松的定位并解决闪退问题。<br />
+<img src="media/16887976127793/16888003734396.jpg" alt="" /></p>
+<h4><a id="%E7%AC%A6%E5%8F%B7%E7%9A%84%E5%9F%BA%E6%9C%AC%E4%BF%A1%E6%81%AF" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>符号的基本信息</h4>
+<p>每一个符号都有三部分组成：偏移、类型、函数签名。<br />
+<img src="media/16887976127793/16887998971171.jpg" alt="" /></p>
+<h5><a id="%E7%B1%BB%E5%9E%8B" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>类型</h5>
+<p>中间的那个字母，大些的代表动态符号，也就是全局符号，小写的代表常规符号，也就是本地符号。至于字母的意思，可以 <code>man nm</code> 看一下。比较多，这里就不枚举了。<br />
+<img src="media/16887976127793/16888002367751.jpg" alt="" /></p>
+<h5><a id="%E5%87%BD%E6%95%B0%E7%AD%BE%E5%90%8D" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>函数签名</h5>
+<p>源码里函数的签名，可以直接搜索源码定位问题函数。</p>
+<h5><a id="%E5%81%8F%E7%A7%BB" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>偏移</h5>
+<p>动态库是 <code>PIC（position-independent code）</code>，在 <code>APP</code> 真正加载 <code>so</code> 之前 <code>so</code> 里的符号都不会有虚拟内存地址，只是相对于 <code>so</code> 的偏移。在 <code>APP</code> 运行中动态加载 <code>so</code> 时才会给 <code>so</code> 分配一段内存，<code>so</code> 基地址 + 符号偏移才是该符号在本次 <code>APP</code> 运行时的真实虚拟地址，并且该地址在 <code>APP</code> 本地进程结束之前都不会变。</p>
+<p>在 <code>APP</code> 发生闪退时，如果是调用 <code>so</code> 的某个符号时挂了，那这时候的 <code>pc</code> 寄存器就是指向了该符号的虚拟地址 + 该符号内的偏移（一个符号就是一个函数，<code>pc</code> 寄存器指向的是函数内的某一个指令，而非符号头地址）。</p>
+<p>通常来讲会有基础的同学自动把闪退堆栈里的地址减去 <code>so</code> 基地址，这样我们看到的堆栈地址就是相对于 <code>so</code> 本身的偏移了，然后就可以通过 <code>addr2line</code> 找到对应的函数（符号）和行号（符号内偏移）。<br />
+<img src="media/16887976127793/16888003734396.jpg" alt="" /></p>
+<h3><a id="text" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>.text</h3>
+<p>包含本 <code>so</code> 的可执行代码。</p>
+<h3><a id="data-bss" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>.data &amp; .bss</h3>
+<p><code>.data</code> 段包含已初始化的全局变量和静态变量；<br />
+<code>.bss</code> 段包含未初始化的全局变量和静态变量；</p>
+<h3><a id="rodata" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>.rodata</h3>
+<p>包含一些只读的变量，比如常量或字符串。</p>
+<h3><a id="comment" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>.comment</h3>
+<p>记录一些 <code>so</code> 相关的信息，对 <code>so</code> 本身的功能没有任何影响，主要是用来塞入一些上下文信息。比如编译版本、时间等等。</p>
+
+]]>
+        </content>
+    </entry>
+    
+    <entry>
+        <title type="html">
+            <![CDATA[浅谈大前端跨端方案]]>
+        </title>
+        <link href="https://wxdut.com/16886092802260.html" />
+        <updated>2023-07-06T10:08:00+08:00</updated>
+        <id>https://wxdut.com/16886092802260.html</id>
+        <content type="html">
+            <![CDATA[
+<p>行业里涌现了比较多有名的跨端框架，可以实现一份代码双端甚至多端运行。本文来介绍下行业内主流跨端方案的分类、优劣势、原理等等。</p>
+<span id="more"></span><!-- more -->
+<h2><a id="%E8%83%8C%E6%99%AF" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>背景</h2>
+<p>在客户端领域我们的 APP 一直需要开发 Android 和 iOS 两个平台，工作量 double，bug 数量也 double，相对于前端网页的一份代码多端运行简直效率低下。</p>
+<p>为了提效，行业里涌现了比较多有名的框架，可以实现一份代码双端甚至多端运行。比较有名的有：React Native、Weex、Flutter、uniapp、小程序。这些跨端方案各有千秋，但是从分层设计上来讲都是类似的。主要有两层：DSL语法层+渲染层，不管方案怎么演变，这个总是不变的。（为了省时间就先不画图了，纯文字描述。）</p>
+<p>在实现跨端之前，网页已经是跨端的，甚至可以说是全平台，只要有浏览器即可。但是 Web 网页主要有两个问题无法替代原生客户端：性能、调用客户端能力。先说性能方面，浏览器在手机端相较于原生应用占用内存过高，响应慢，稳定性差。另外在能力方面无法完全的利用强大的设备硬件能力。</p>
+<p>既然浏览器存在硬伤，能否进行优化呢。答案是可以的。</p>
+<h2><a id="%E6%96%B9%E6%A1%88%E5%88%86%E7%B1%BB" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>方案分类</h2>
+<p>从分层的角度去看，业界主流方案从DSL语法层+渲染层做了各种优化。但主要还是替换问题众多的 Webview。</p>
+<h3><a id="js-webview" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>JS + Webview</h3>
+<p>这种方案是使用客户端提供的 Webview 组件，类似于 H5 方案。微信小程序就是用的这种方案，虽然做了众多优化，但是说到底还是用的 Webview，存在稳定性、性能等问题。</p>
+<p>不过目前小程序也放弃了 Webview，推出了 <a href="https://www.zhihu.com/question/546709238">Skyline</a> 方案。将渲染层替换为 Flutter，可以说是小程序又往前发展了一大步。</p>
+<p><img src="media/16886092802260/16886495352052.jpg" alt="" /></p>
+<h3><a id="js-uiview" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>JS + UIView</h3>
+<p>一些主流框架在渲染层使用系统原生 View 渲染。比如 React Native 和 Weex 就是这种。</p>
+<p>这种方案相对于其他方案还是比较坑的。主要有两个问题：多平台不一致、难扩展。其次，相对于其他方案直接交给系统渲染的方案，效率也更低。</p>
+<p>具体说就是，既然是原生 View 去渲染，那就必然存在平台不一致的问题，比如安卓的 EditText 和 iOS 的 UITextField 的 UI 效果就是差别很大的。再者就是依赖于系统组件反而会受限制，比如无法实现系统组件能力之外的效果。</p>
+<p>Airbnb 之前就抛弃了 RN 方案，<a href="https://www.techug.com/post/airbnb-sunsetting-react-native/">https://www.techug.com/post/airbnb-sunsetting-react-native/</a></p>
+<p><img src="media/16886092802260/diagram_ios-android-views.png" alt="diagram_ios-android-views" /></p>
+<h3><a id="js-nativerender" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>JS + NativeRender</h3>
+<p>上面提到的 RN 使用客户端原生 View 会有一些硬伤，所以一些方案选择了使用 NativeRender 来渲染，比如使用 Canvas、Texture、Skia 等等。</p>
+<p>这些框架的渲染性能和自由度是最好的。微信小游戏就是使用的这种方案。</p>
+<p><img src="media/16886092802260/16886492838931.jpg" alt="" /></p>
+<p>语言层面使用 JS 还有一个好处就是可以实现动态渲染。通过动态下发 JS 包然后由 JS Engine 执行，避免客户端频繁发包的问题。</p>
+<h3><a id="dsl-nativerender" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>DSL + NativeRender</h3>
+<p>DSL（Domain-Specific Language）全称领域专用语言。就是一种特定领域的编程语言。Flutter 就是这种方案，语言使用 Dart，渲染层自己做 Layout、Paint、Draw。算是目前比较好的一个方案，Flutter 在国内的应用目前也非常多，咸鱼、微信也大量用到了 Flutter。</p>
+<p><img src="media/16886092802260/16886498751519.jpg" alt="" /></p>
+<p>不过 DSL 的方案有个缺点就是适配 Web 比较痛苦，毕竟不是 JS 那样天生就是为 Web 而生。</p>
+<h2><a id="%E6%9C%80%E5%90%8E" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>最后</h2>
+<p>跨端渲染方案发展到今天已经有比较多方案了，不过万变不离其宗，其核心思路都是类似的。了解核心思路，便于有内到外的去理解新框架，以及更好的在业务中选择最合适的方案。</p>
+
+]]>
+        </content>
+    </entry>
+    
+    <entry>
+        <title type="html">
+            <![CDATA[如何把家里宽带配置为云服务器]]>
+        </title>
+        <link href="https://wxdut.com/16826065078832.html" />
+        <updated>2023-04-27T22:41:47+08:00</updated>
+        <id>https://wxdut.com/16826065078832.html</id>
+        <content type="html">
+            <![CDATA[
+<p>家里的宽带网速这么快，能否作为云服务器供外网访问呢？</p>
+<span id="more"></span><!-- more -->
+<p>作为技术人员，一个趁手的云服务器算是刚需，可以将个人博客架设到上面，也可以作为 <code>API Server</code>  为终端提供云服务，也可以作为数据备份仓库。</p>
+<p>不过一般来讲性能稍微好一点的云服务器费用都不低，而且忘记续费还会被回收。而目前家里的宽带一般都是几百兆甚至是千兆宽带，不管是下载还是上传速度都非常快，同等的云服务器的价格已经要起飞了。</p>
+<p>那么很自然就有一个想法：家里的宽带这么快，能作为云服务器使用吗？</p>
+<p>答案是可以的，下面做一下介绍。</p>
+<p><strong>大陆原则上是不允许私自架设服务器的，本文仅供学习交流。</strong></p>
+<p>首先我们要理解一点，云服务器本质上就是一台实体的电脑而已（当然也可以通过虚拟技术将多个服务器架设到同一台设备上），只是这台电脑在各大服务商的机房里，<code>24</code> 小时开机，没有显示屏。</p>
+<p>我们家里用电脑连接到 WiFi 上，其实也可以作为一台服务器，唯一要做的就是要让外网能够访问你家宽带，并最终访问到你的电脑上。</p>
+<h2><a id="%E5%85%AC%E7%BD%91ip" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>公网 IP</h2>
+<p>最最重要的是你要有个公网 <code>IP</code>。为了缓解 <code>IPv4</code> 紧缺的问题（当然还有其他你懂的因素），家里的宽带默认的 <code>IP</code> 都是局域网 <code>IP</code>，不信你可以访问 <code>https://tool.lu/ip/</code> 看一下你的出口 <code>IP</code>，大概率和你光猫的 <code>IP</code> 不一样。</p>
+<p><img src="media/16826065078832/16834234267164.jpg" alt="" /></p>
+<p>如果是局域网 <code>IP</code> 的话，别人根本访问不到你家的光猫设备，就更别提其他的了。</p>
+<p>好在目前不同地区的要求不同，可以打电话给你的宽带运营商，比如电信，然后找人工客服要求更换成公网 <code>IP</code>，如果被问理由，就说是有在公司访问家里文档资料的需求就行了，别提架设网站的事情。</p>
+<p>运营商同意后，一般会有你所在片区的师傅帮你调成公网 <code>IP</code>，调完之后重启一下光猫就可以了。然后查看光猫的 <code>IP</code> 有没有变过来。</p>
+<h2><a id="%E4%B8%AD%E5%A4%AE%E8%B7%AF%E7%94%B1%E5%99%A8%E4%B8%8E%E7%AB%AF%E5%8F%A3%E8%BD%AC%E5%8F%91" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>中央路由器与端口转发</h2>
+<p>有了公网 <code>IP</code>，最核心的问题已经解决了，剩下的就是当用户访问这个公网 <code>IP</code> 时我们应该如何将请求转发到你的电脑上，并处理数据返回给用户端。</p>
+<p>一般要用到端口转发的能力，比如外部访问你的 <code>IP</code> 的 <code>80</code> 端口，你需要将这个请求转发到家庭局域网中的某个电脑上，然后由电脑响应请求并返回内容。</p>
+<p>一个比较好的办法是搞一台支持梅林等系统的路由器，比如我用的是华硕 <code>RT-AC5300</code>，将光猫的模式改为桥接，由路由器负责内网的搭建和管理。同时建议关掉光猫的 <code>WiFi</code>，很鸡肋。</p>
+<p><img src="media/16826065078832/16834237217938.jpg" alt="" /></p>
+<h2><a id="ddns" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>DDNS</h2>
+<p>一般来讲，从运营商申请到的公网 <code>IP</code> 都是临时的，过一段时间就会自动变，我们需要通过 <code>DDNS(Dynamic Domain Name Server)</code> 动态域名服务做动态域名解析。</p>
+<p>我是直接用的华硕路由器提供个的 <code>DDNS</code> 服务，免费。</p>
+<p>为了方便理解，我这里假设 <code>DDNS</code> 的域名为 <code>https://ddns.asus.com</code>。</p>
+<p>到这一步，当用户访问 <code>https://ddns.asus.com</code> 其实已经可以访问到你的中央路由器的 <code>443</code> 端口了。</p>
+<h2><a id="80%E4%B8%8E-443%E7%AB%AF%E5%8F%A3" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>80 与 443 端口</h2>
+<p><code>80</code> 和 <code>443</code> 端口分别是 <code>HTTP</code> 和 <code>HTTPS</code> 的默认端口，很不幸，这两个端口都被屏蔽了。因为大陆不允许将私人宽带作为服务器使用，特别是建站操作，明令禁止。</p>
+<p>那怎么办呢，我们总不能每次访问都加上端口号吧，这也太麻烦了，也没这么搞的。</p>
+<p>好在有一些方案可以绕过。比如可以利用 <code>CDN</code> 回源时可以指定端口号的特性，我们访问 <code>CDN</code> 域名的 <code>443</code> 端口，然后 <code>CDN</code> 回源时配置访问服务器的特殊端口号。这样就可以做到用户正常访问，无需添加端口号的目的。</p>
+<p><img src="media/16826065078832/16834248570732.jpg" alt="" /></p>
+<p>先写这些吧，毕竟我是一个遵纪守法的好公民。</p>
+
+]]>
+        </content>
+    </entry>
+    
+    <entry>
+        <title type="html">
+            <![CDATA[iOS 内存分析 - Allocations]]>
+        </title>
+        <link href="https://wxdut.com/16788697947776.html" />
+        <updated>2023-03-15T16:43:14+08:00</updated>
+        <id>https://wxdut.com/16788697947776.html</id>
+        <content type="html">
+            <![CDATA[
+<p>本文以实际案例入手，介绍如何使用 <code>Instruments</code> 提供的 <code>Allocations</code> 分析内存申请情况来优化内存占用、分析泄露问题。</p>
+<span id="more"></span><!-- more -->
+<p><code>Allocations</code> 统计所有内存的申请，包括堆内存和栈内存，并可以查看每次申请内存时的大小、函数调用链等重要信息。对我们分析内存有很大的帮助。</p>
+<p><img src="media/16788697947776/16797332856284.jpg" alt="" /></p>
+<p>提到泄露，其实 <code>Instruments</code> 还提供了一个 <code>Leaks</code> 的工具专门分析泄露问题。但是实际遇到的问题往往没那么简单。只有没有任何对象和指针指向的对象才会被 <code>Leaks</code> 认为是泄露，但是实际场景中很多泄露的内存其实是有指针指向它的，只是逻辑比较复杂我们不知道有谁指向它。这种情况下分析内存申请情况就很重要了，这里介绍一些实际的例子。</p>
+<h2><a id="%E5%88%86%E6%9E%90%E6%B3%84%E9%9C%B2" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>分析泄露</h2>
+<p>前段时间遇到了个内存问题，停留在某个页面不动，但是内存却一直在涨，很明显有地方在一直申请内存没释放，但是这并不代表着泄露了，因为有地方持有着这些对象，只是我根本不知道谁持有的。</p>
+<p>所以我使用 <code>Allocations</code> 截取一段时间内的内存申请情况。可以看到申请的内存的列表，并且可以看到每次申请内存时的堆栈。</p>
+<p><img src="media/16788697947776/WeChatWorkScreenshot_75b35429-7fd0-422d-b3ed-26fe619cf1dc.png" alt="WeChatWorkScreenshot_75b35429-7fd0-422d-b3ed-26fe619cf1dc" /></p>
+<p>只需要分析这些内存都是哪个函数申请的就知道泄露点了。同时，还可以双击右侧的堆栈里的某个函数，就可以看到下面这种聚合的信息，可以清楚的看到某个函数或者某一行代码申请了多少内存。</p>
+<p><img src="media/16788697947776/WeChatWorkScreenshot_c1b0aaf6-595f-460d-81ad-258f4b3fe98b.png" alt="WeChatWorkScreenshot_c1b0aaf6-595f-460d-81ad-258f4b3fe98b" /></p>
+<p>以上图为例，泄露的地方可以确认是红框里的内容。</p>
+<h2><a id="%E5%88%86%E6%9E%90%E5%86%85%E5%AD%98%E9%97%AE%E9%A2%98" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>分析内存问题</h2>
+<p>前段时间遇到个问题，有个小游戏首次播放音频会增加 <code>50 M</code> 内存，但是同样的音频再次播放就只会增加 <strong>30 M</strong> 内存，稳定差了 <code>20M</code>。</p>
+<p>很显然，需要分析一下首播和次播时申请的内存有什么区别。</p>
+<p>用 <code>Allocations</code> 分析后发现首播确实比次播多了一些内存申请记录。</p>
+<p><img src="media/16788697947776/16797342019261.jpg" alt="" /></p>
+<p>找到首播多申请的内存记录，点击查看堆栈，就可以很清晰的看到是哪些逻辑申请的，这些逻辑次播没有被调用。问题迎刃而解。</p>
+
+]]>
+        </content>
+    </entry>
+    
+    <entry>
+        <title type="html">
+            <![CDATA[XCode Instruments 使用]]>
+        </title>
+        <link href="https://wxdut.com/16782743400583.html" />
+        <updated>2023-03-08T19:19:00+08:00</updated>
+        <id>https://wxdut.com/16782743400583.html</id>
+        <content type="html">
+            <![CDATA[
+<p><code>XCode</code> 是苹果官方提供的 <code>IDE</code>，虽然坑很多，但是也提供了许多比 <code>Android Studio</code> 更好用的工具，比如 <code>Instruments</code>，<code>Instruments</code> 里面包含了好几个很好用的工具，供排查分析问题使用。这些工具的大致使用方式都是类似的，本文主要介绍一些通用的能力和技巧。</p>
+<span id="more"></span><!-- more -->
+<h2><a id="instruments%E6%98%AF%E4%BB%80%E4%B9%88" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>Instruments 是什么</h2>
+<p><code>Instruments</code> 是 <code>XCode</code> 提供的一个工具集合，比如分析内存、分析 <code>CPU</code> 占用、分析函数耗时等等。正确的使用这些工具可以帮助我们很好的排查和分析问题。</p>
+<p><code>Instruments</code> 其实是个独立的 <code>APP</code>，可以通过 <code>XCode -&gt; Open Developer Tool -&gt; Instruments</code> 打开 <code>Instruments</code>。<br />
+<img src="media/16782743400583/16782749901377.jpg" alt="" /></p>
+<p>也可以直接搜索这个软件。<br />
+<img src="media/16782743400583/16782751291285.jpg" alt="" /></p>
+<p>打开之后 <code>Instruments</code> 之后可以看到下面这么多工具，每一个工具都可以帮助我们很好的分析问题。<br />
+<img src="media/16782743400583/16782748893793.jpg" alt="" /></p>
+<h2><a id="%E5%AD%90%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8%E6%8C%87%E5%BC%95" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>子工具使用指引</h2>
+<p><code>Instruments</code> 本质上是一系列工具的集合，每个工具怎么用呢？可以参考下面这些文章。</p>
+<p><strong>因为 Instruments 里的各个工具的使用方式和界面基本都是一样的，而且使用起来和很简单，所以下面的系列文章不提最基本的使用方法。</strong></p>
+<p><strong>Time Profiler</strong>：<a href="16610143872563.html">iOS 性能调优 - 耗时分析</a><br />
+<strong>Allocations</strong>：<a href="16788697947776.html">iOS 内存分析 - Allocations</a></p>
+<h2><a id="%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>常见问题</h2>
+<h3><a id="%E7%AC%A6%E5%8F%B7%E9%97%AE%E9%A2%98" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>符号问题</h3>
+<p>不管是查什么问题，本质上都是为了查某些函数和对象的表现，需要配置符号，不然看到的都是一堆的指针，看不出具体是什么函数，也就无法定位问题。</p>
+<p><code>iOS</code> 的调试信息的格式是 <code>DWARF</code>，我们需要导出一个单独的 <code>dSYM</code> 文件给 <code>Instruments</code> 使用。如果你不熟悉 <code>DWARF</code> 和 <code>dSYM</code>，可以参考 <a href="16643337564362.html">iOS 符号之 DWARF 和 dSYM</a>。</p>
+<p>找到项目设置，一般我们都是用 <code>Debug</code> 这个 <code>Scheme</code>，将其从默认的 <code>DWARF</code> 改为 <code>DWARF with dSYM File</code>，然后再编译安装到手机，然后就可以愉快的使用 <code>Instruments</code> 了。</p>
+<p>这里注意如果使用 <code>Instruments</code> 完毕后记得改回 <code>DWARF</code>，否则 <code>XCode</code> 每次都会生成单独的 <code>dSYM</code> 文件，会导致安装时间变长，平时开发是没必要的。</p>
+<p><img src="media/16782743400583/16782756082110.jpg" alt="" /></p>
+<p>当然，按上面的操作配置之后，在实际使用过程中依然经常遇到没有符号的问题，甚至是先有符号，然后重试一次又没符号，这种不要慌，重启 <code>Instruments</code> 即可，有时候一次不行就再重启一次，还不行就再重启。。。亲测可行。</p>
+<h3><a id="%E6%97%A0%E6%B3%95%E9%80%89%E6%8B%A9%E6%89%8B%E6%9C%BA" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>无法选择手机</h3>
+<p><img src="media/15831553619652/15835031101893.jpg" alt="" /></p>
+<p>重启手机就行了：</p>
+<p><a href="https://stackoverflow.com/questions/32878283/unable-to-profile-app-on-device-with-ios-9-0-1-using-xcode-7-7-0-1-or-7-1-beta">https://stackoverflow.com/questions/32878283/unable-to-profile-app-on-device-with-ios-9-0-1-using-xcode-7-7-0-1-or-7-1-beta</a></p>
+
+]]>
+        </content>
+    </entry>
+    
+    <entry>
+        <title type="html">
+            <![CDATA[LLDB - 源码调试工具]]>
+        </title>
+        <link href="https://wxdut.com/16749127493537.html" />
+        <updated>2023-01-28T21:32:29+08:00</updated>
+        <id>https://wxdut.com/16749127493537.html</id>
+        <content type="html">
+            <![CDATA[
+<p><code>LLDB</code> 是 <code>LLVM</code> 编译套件里的一个调试工具，也是 <code>XCode</code> 的调试器，本文总结下如何使用 <code>XCode + LLDB</code> 进行调试。包含一些基本的使用方法和一些小技巧。</p>
+<span id="more"></span><!-- more -->
+<h2><a id="xcode-lldb%E8%B0%83%E8%AF%95%E7%95%8C%E9%9D%A2" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>XCode LLDB 调试界面</h2>
+<p>通常来讲，会先添加一个符号断点，然后命中断点之后可以查看当前堆栈和变量，可以单步调试等等。</p>
+<p>这里可以查看目前项目填加的所有断点。包含生效的和未生效的。</p>
+<p><img src="media/16749127493537/16749770935662.jpg" alt="" /></p>
+<p>一般来讲，通过 <code>XCode</code> 启动程序之后，会自动打开调试面板。可以通过点击这个按钮中断程序，以便于利用 <code>LLDB</code> 的能力进行调试工作。<br />
+<img src="media/16749127493537/16749775999451.jpg" alt="" /></p>
+<p>命中断点之后，<code>XCode</code> 也会自动打开这个面板，以便于单步调试等。<br />
+<img src="media/16749127493537/16749774591659.jpg" alt="" /></p>
+<p>这个非常简单，就不细说了。</p>
+<h2><a id="lldb%E5%B8%B8%E7%94%A8%E5%91%BD%E4%BB%A4" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>LLDB 常用命令</h2>
+<h3><a id="expression-p-po" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>expression / p / po</h3>
+<p>顾名思义，<code>exception</code> 命令是用来执行一个表达式，并返回结果。</p>
+<p>当然它有一些参数，可以通过 在 <code>lldb</code> 控制台输入 <code>help expression</code> 查看详细说明。</p>
+<p>日常较少直接使用 <code>exception</code>，更多的是使用 <code>p</code> 和 <code>po</code> 命令。</p>
+<ul>
+<li>p：执行语句返回结果，或者打印变量值，如果是指针，会打印地址</li>
+<li>po：执行语句返回结果，或者打印变量值，如果是指针，会调用对象的 <code>description</code> 函数并打印出来</li>
+</ul>
+<p>一般就无脑 <code>po</code> 就行了，有时候明确想查看对象的指针时可以用一下 <code>p</code>。</p>
+<p>在使用 <code>po</code> 打印 <code>OC</code> 对象的时候经常遇到一些函数找不到的错误，可以使用 <code>@import UIKit</code> 的方式手动导入 👇🏻。</p>
+<pre><code class="language-plain_text">(lldb) p self.view.frame
+error: property 'frame' not found on object of type 'UIView *'
+error: 1 errors parsing expression
+(lldb) e @import UIKit
+(lldb) p self.view.frame
+(CGRect) $0 = (origin = (x = 0, y = 0), size = (width = 375, height = 667))
+</code></pre>
+<p>更多命令和用法可以通过 <code>man lldb</code> 和 <code>lldb --help</code> 查看文档，有详细的描述。</p>
+<h3><a id="thread-return" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>thread return</h3>
+<p>在单步调试时，有时候想直接让函数返回，不继续执行下面的逻辑，可以使用这个命令。</p>
+<p><img src="media/16749127493537/16776496061598.jpg" alt="" /></p>
+<p>比如在上图的断点处执行 <code>thread return NO</code>，函数立刻返回，相当于执行了 <code>return NO</code>，当然，你也可以执行 <code>thread return YES</code>。</p>
+<p>其他 <code>thread</code> 指令都不太常用或者用处不大，详情参考 <code>help thread</code>。</p>
+<h3><a id="breakpoint-watchpoint" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>breakpoint &amp; watchpoint</h3>
+<p>关于 <code>breakpoint</code>，平时在 <code>XCode</code> 里点击代码右侧添加的断点就是 <code>breakpoint</code>（符号断点），也就是给某个函数的某一行增加一个端点，也是最常用的。虽然有 <code>lldb</code> 命令，但是 <code>XCode</code> 提供的 <code>UI</code> 操作界面已经很简单易用了，没必要用命令行指令，这里就不提了。</p>
+<p>除此之外，还有一个 <code>watchpoint</code>，是给具体某个地址加一个端点，当该地址里的内容发生变化时会中断程序。</p>
+<h4><a id="watchpoint-set-variable" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>watchpoint set variable</h4>
+<p>一般情况下，要观察变量或者属性，使用 <code>watchpoint set variable</code> 命令即可。比如：</p>
+<pre><code class="language-plain_text">(lldb) watchpoint set variable self-&gt;_string
+Watchpoint created: Watchpoint 1: addr = 0x7fcf3959c418 size = 8 state = enabled type = w
+    watchpoint spec = 'self-&gt;_string'
+    new value: 0x0000000000000000
+</code></pre>
+<p>这里有个细节：👇🏻</p>
+<pre><code class="language-plain_text">watchpoint set variable self-&gt;_string // 可以 self-&gt;_string 是个变量
+watchpoint set variable self.string // 不可以，self.string 是个 getter 方法
+</code></pre>
+<p>另外，每个 <code>watchpoint</code> 都有一个数字 <code>ID</code>，比如上面的例子里的 <code>ID</code> 是 <code>1</code>，后续操作这个 <code>watchpoint</code> 都要指定这个 <code>ID</code>。</p>
+<h4><a id="watchpoint-set-expression" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>watchpoint set expression</h4>
+<p>如果想监听某个地址的内容变化，可以使用 <code>watchpoint set expression address</code>。</p>
+<pre><code class="language-plain_text">(lldb) p &amp;_model
+(Modek **) $3 = 0x00007fe0dbf23280
+(lldb) watchpoint set expression 0x00007fe0dbf23280
+Watchpoint created: Watchpoint 1: addr = 0x7fe0dbf23280 size = 8 state = enabled type = w
+    new value: 0
+</code></pre>
+<h4><a id="watchpoint-list" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>watchpoint list</h4>
+<p>查看当前添加的所有 <code>watchpoint</code>。</p>
+<pre><code class="language-plain_text">(lldb) watchpoint list
+Number of supported hardware watchpoints: 4
+Current watchpoints:
+Watchpoint 1: addr = 0x7fe9f9f28e30 size = 8 state = enabled type = w
+    watchpoint spec = '_string'
+    old value: 0x0000000000000000
+    new value: 0x000000010128e0d0
+</code></pre>
+<h4><a id="watchpoint-enabledisabledelete" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>watchpoint enable/disable/delete</h4>
+<p>将某一个 <code>watchpoint</code> 打开/关闭/删除</p>
+<pre><code class="language-plain_text">(lldb) watchpoint enable 1
+1 watchpoints enabled.
+
+(lldb) watchpoint disable 1
+1 watchpoints disabled.
+
+(lldb) watchpoint delete 1
+1 watchpoints deleted.
+</code></pre>
+<h3><a id="%E6%9B%B4%E5%A4%9A%E5%91%BD%E4%BB%A4" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>更多命令</h3>
+<p>本文只列一些常用的命令，更多命令可以通过在 <code>lldb</code> 命令行中输入 <code>help</code> 查看。</p>
+
+]]>
+        </content>
+    </entry>
+    
+    <entry>
+        <title type="html">
+            <![CDATA[浅谈 C/C++ 编译流程和常见编译器]]>
+        </title>
+        <link href="https://wxdut.com/16748972547111.html" />
+        <updated>2023-01-28T17:14:14+08:00</updated>
+        <id>https://wxdut.com/16748972547111.html</id>
+        <content type="html">
+            <![CDATA[
+<p>本文介绍下 <code>C/C++</code> 编译器编译流程，然后详细介绍下主流的编译器 <code>GCC</code> 和 <code>Clang(LLVM)</code> 以及二者的对比。</p>
+<span id="more"></span><!-- more -->
+<h2><a id="%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E4%BA%86%E8%A7%A3%E7%BC%96%E8%AF%91%E5%99%A8%E5%92%8C%E7%BC%96%E8%AF%91%E6%B5%81%E7%A8%8B" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>为什么要了解编译器和编译流程</h2>
+<p>最近两年负责的项目基本都是 <code>C/C++</code> 项目，除了技术上的提升之外，还有一个很明显的改变就是对「编译错误」的态度，以前十分讨厌编译问题，毕竟这种问题经常和电脑、操作系统、甚至和缓存有关，很浪费时间而且也觉得没啥收获。</p>
+<p>被折磨了<code>两年半</code>之后，发现<strong>大多数编译问题基本都可以从编译的过程和原理的角度找到原因和解决办法，其实也是技术精进的过程</strong>。我现在就挺喜欢处理编译问题，遇到无法解决的编译问题说明我对编译过程还不足够了解，特别是一些比较诡异的问题，往往是隐藏着一些不为人知的小知识细节。</p>
+<h2><a id="%E7%BC%96%E8%AF%91%E6%B5%81%E7%A8%8B" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>编译流程</h2>
+<p>使用编译型语言的技术人员每天都会接触编译，比如 <code>C/C++</code>、<code>OC</code>、<code>Java</code>、<code>Kotlin</code> 等等，只不过我们通常不用详细的了解编译过程，这些事情一般都是各种 <code>IDE</code> 帮我们完成，我们只需要点一个按钮即可。</p>
+<h3><a id="%E5%9F%BA%E6%9C%AC%E7%BC%96%E8%AF%91%E6%B5%81%E7%A8%8B" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>基本编译流程</h3>
+<p>不同的编译器的编译流程基本都是一样的，简单来讲，一般包含预处理(Preprocessing)、编译(Compilation)、汇编(Assembly)、链接(Linking)这几个过程。</p>
+<p><img src="media/16748972547111/16748984188724.jpg" alt="" /></p>
+<p>从上图可以看到，编译之前是源代码，编译之后是可执行文件。其中：</p>
+<p><strong>1. 预处理（生成 .i 文件）</strong></p>
+<p>这个步骤会去掉 <code>#define</code>、<code>#ifdef</code>、<code>#else</code> 等预编译处理指令，根据相关的编译参数选择相应的代码段，然后将不符合条件的逻辑删除。</p>
+<p>然后还会将 <code>#include</code> 导入的头文件的内容拷贝过来，然后删掉 <code>#include</code> 指令。</p>
+<p>还会删掉所有的注释，因为这些注释对编译过程没啥用。</p>
+<p>添加行号和文件标识，以便编译时产生调试用的行号及编译错误警告行号。</p>
+<p><strong>2. 编译（生成 .s 文件）</strong></p>
+<p>这个过程主要是进行词法分析，语法分析，语义分析及优化后生成相应的汇编代码。</p>
+<p><strong>3. 汇编（生成 .o 文件）</strong></p>
+<p>汇编过程调用对汇编代码进行处理，生成机器能识别的机器码，保存在后缀为 <code>.o</code> 的目标文件中。</p>
+<p>把汇编语言使用对应的处理器指令集翻译一下，让机器能理解并执行。</p>
+<p><strong>4. 链接（生成 .a .so 等二进制文件）</strong></p>
+<p>这个步骤就是把汇编得到的 <code>.o</code> 合并成一个二进制库文件。</p>
+<p>链接有静态链接和动态链接两种。静态链接是指把静态库加入到可执行文件中去，这样可执行文件会比较大。链接器将函数的代码从其所在地（不同的目标文件或静态链接库中）拷贝到最终的可执行程序中。动态链接则是指链接阶段仅仅只加入一些描述信息，而程序执行时再从系统中把相应动态库加载到内存中去。</p>
+<h3><a id="%E7%BC%96%E8%AF%91%E5%99%A8%E7%9A%84%E5%89%8D%E7%AB%AF%E3%80%81%E4%B8%AD%E7%AB%AF%E3%80%81%E5%90%8E%E7%AB%AF" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>编译器的前端、中端、后端</h3>
+<p>编译从整体上分为上面提到的四个过程，<strong>从编译器的角度</strong>不会是这么简单，需要细化到每个步骤的每个细节。编译过程从编译器的角度可以分为前端、中端、后端三个模块和过程。</p>
+<p>具体流程和上面介绍的一样，只是讲各个编译工作划分为三个过程。其中多了一个中间阶段，也就是下图中的 <code>Optimizer</code>，编译前端不是生成汇编文件，而是生成一种中间代码（IR，Intermediate Representation，有时也称 Intermediate Code，IC）。<code>IR</code> 是一种机器无关的表达，编译器会对 <code>IR</code> 进行一系列的优化，以便于加快编译速度等等。优化后的 <code>IR</code> 会交给编译后端进行汇编和生成字节码等后续流程。</p>
+<p><img src="media/16748972547111/16749004771582.jpg" alt="" /></p>
+<h2><a id="%E4%B8%BB%E6%B5%81%E7%BC%96%E8%AF%91%E5%99%A8%EF%BC%88gcc%E5%92%8C-clang-llvm%EF%BC%89" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>主流编译器（GCC 和 Clang(LLVM)）</h2>
+<p>上面介绍了编译流程，以及编译器实现编译时的流程。下面介绍目前主流的编译器及其基本概念。</p>
+<h3><a id="%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>基本概念</h3>
+<p>首先，我们先弄清 <code>GCC</code>、<code>Clang</code>、<code>LLVM</code> 等概念，以及它们之间的关系。</p>
+<p><strong>目前主流的编译器套件有两个，<a href="https://gcc.gnu.org/">GCC（GNU Compiler Collection）</a> 以及 <a href="https://llvm.org/">LLVM</a>。所谓套件，就是一个一堆工具的合集。</strong></p>
+<p><strong><code>GCC</code> 是由 <code>GNU</code> 开发的，<code>LLVM</code> 是由苹果公司开发的。</strong> 最初苹果公司一直使用 <code>GCC</code> 作为官方的编译器。<code>GCC</code> 作为一款开源的编译器，一直做得不错，但 <code>Apple</code> 对编译工具会提出更高的要求。比如苹果需要 <code>GCC</code> 支持 <code>OC</code>、<code>Swift</code> 的新特性，但是 <code>GCC</code> 肯定不乐意搞，或者搞得很慢。所以苹果就自己搞了 <code>LLVM</code>。</p>
+<p><code>GCC</code> 和 <code>LLVM</code> 的编译架构是类似的，可以参考上图。我们平时接触的更多的是这两个编译套件的编译器前端：<code>GCC（GNU Compiler Collection）</code> 套件的编译器前端是 <code>GCC（GNU C Compiler）</code>，最初这个 <code>GCC</code> 前端只能编译 <code>C</code> 语言，后续经过发展也支持了 <code>C++</code>、<code>Java</code>、<code>Objective-C</code> 等语言。这里 <code>GCC</code> 套件和 <code>GCC</code> 编译器前端的缩写完全一样，一般可以根据具体上下文确定具体指的是哪个。<code>LLVM</code> 套件的编译器前端是 <code>Clang</code>，目前支持 <code>C/C++</code>、<code>Objective-C</code> 等语言。</p>
+<p>编译器前端一般也被叫做编译器，反正注意根据语境区分。。。</p>
+<h3><a id="gcc%E5%92%8C-clang%E4%BC%98%E5%8A%BF%E5%AF%B9%E6%AF%94" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>GCC 和 Clang 优势对比</h3>
+<p>毕竟 <code>Clang</code> 是苹果亲自开发的，所以相比于 <code>GCC</code> 速度快，占用内存小，兼容性好，有静态分析能力。<code>Clang</code> 使用 <code>BSD</code> 许可证，<code>GCC</code> 使用 <code>GPL</code> 许可证。</p>
+<p><img src="media/16748972547111/16749109890988.jpg" alt="" /></p>
+<p>当然，<code>GCC</code> 也有自己的优点，比如支持 <code>Java</code> 语言，<code>Clang</code> 就不支持。</p>
+<h3><a id="gcc%E5%A5%97%E4%BB%B6%E5%86%85%E5%AE%B9" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>GCC 套件内容</h3>
+<p>既然是套件，肯定不止一个工具。<code>GCC</code> 除了编译器前后端等工具之外，还有一些处理二进制文件的工具 <code>Binutils</code>。</p>
+<ul>
+<li>addr2line</li>
+</ul>
+<p>用来将程序地址转换成其所对应的程序源文件及所对应的代码行，也可以得到所对应的函数。该工具将帮助调试器在调试的过程中定位对应的源代码位置。</p>
+<ul>
+<li>as</li>
+</ul>
+<p>主要用于汇编。</p>
+<ul>
+<li>ld</li>
+</ul>
+<p>主要用于链接。</p>
+<ul>
+<li>ar</li>
+</ul>
+<p>主要用于创建静态库。</p>
+<ul>
+<li>ldd</li>
+</ul>
+<p>可以用于查看一个可执行程序依赖的共享库。</p>
+<ul>
+<li>objcopy</li>
+</ul>
+<p>将一种对象文件翻译成另一种格式，譬如将 <code>.bin</code> 转换成 <code>.elf</code>、或者将 <code>.elf</code> 转换成 <code>.bin</code> 等。</p>
+<ul>
+<li>objdump</li>
+</ul>
+<p>主要的作用是反汇编。</p>
+<ul>
+<li>readelf</li>
+</ul>
+<p>显示有关 <code>ELF</code> 文件的信息。</p>
+<ul>
+<li>size</li>
+</ul>
+<p>列出可执行文件每个部分的尺寸和总尺寸，代码段、数据段、总大小等。</p>
+<h3><a id="llvm%E5%A5%97%E4%BB%B6%E5%86%85%E5%AE%B9" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>LLVM 套件内容</h3>
+<ul>
+<li>LLVM 核心库</li>
+</ul>
+<p>LLVM 核心库提供了编译中后端能力。比如编译器中端（<code>Optimizer</code>），提供了汇编能力，生成不同 <code>CPU</code> 的机器码。</p>
+<ul>
+<li>Clang</li>
+</ul>
+<p>编辑器前端，提供了<a href="https://clang-analyzer.llvm.org/">代码静态分析能力</a>，可以在源码阶段分析出潜在的代码问题。</p>
+<ul>
+<li>LLDB</li>
+</ul>
+<p>源码调试工具。具体可以参考<a href="16749127493537.html">LLDB - 源码调试神器</a>。</p>
+<ul>
+<li>libc++、compiler-rt、MLIR、OpenMP、polly、libclc、klee、LLD、BOLT</li>
+</ul>
+<p>这些工具不常接触到，先知道有这个东西就行。具体可以参阅<a href="https://llvm.org/">官方文档</a>。</p>
+<h2><a id="%E5%BC%95%E7%94%A8%E6%96%87%E7%8C%AE" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>引用文献</h2>
+<p>本文编写过程中参阅了一些文章，在此列出。</p>
+<p><a href="https://zhuanlan.zhihu.com/p/44922656">Linux 程序编译过程的来龙去脉</a><br />
+<a href="https://www.jianshu.com/p/57da8e359115">浅谈编译过程</a><br />
+<a href="https://zhuanlan.zhihu.com/p/357803433">详解三大编译器：gcc、llvm 和 clang</a></p>
+
+]]>
+        </content>
+    </entry>
+    
+    <entry>
+        <title type="html">
+            <![CDATA[iOS framework 静态库相关知识]]>
+        </title>
+        <link href="https://wxdut.com/16729723756811.html" />
+        <updated>2023-01-06T10:32:55+08:00</updated>
+        <id>https://wxdut.com/16729723756811.html</id>
+        <content type="html">
+            <![CDATA[
+<p>以 OpenCV 为例，介绍一些常见的二进制库工具。</p>
+<span id="more"></span><!-- more -->
+<h2><a id="%E6%9F%A5%E7%9C%8B%E6%9E%B6%E6%9E%84" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>查看架构</h2>
+<p>可以使用 <code>file</code> 命令查看支持的架构，也可以看到是静态库还是动态库。</p>
+<p><img src="media/16729723756811/16743734279794.jpg" alt="" /></p>
+<p>当然 <code>file</code> 命令还可以用来查看其他文件的一些基本参数，比如查看一个音频文件的参数 👇🏻</p>
+<p><img src="media/16729723756811/16743735151303.jpg" alt="" /><br />
+可以看到这个 <code>wav</code> 音频是一个小端存储、采样数据格式为 PCM、16 位深、采样率 48000。</p>
+<h2><a id="%E6%9F%A5%E7%9C%8B%E7%AC%A6%E5%8F%B7" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>查看符号</h2>
+<p>查看一个二进制文件的符号可以使用 <code>nm</code> 命令。</p>
+<p><img src="media/16729723756811/16743738559896.jpg" alt="" /><br />
+<img src="media/16729723756811/16743738681338.jpg" alt="" /></p>
+<p>一个比较常见的操作是配合 <code>grep</code> 来查找过滤某些符号 👇🏻</p>
+<pre><code class="language-plain_text">nm opencv2.framework/opencv2 | grep CodedOutputStream
+</code></pre>
+<p><img src="media/16729723756811/16743740280262.jpg" alt="" /></p>
+<p><code>nm</code> 的输出里，除了能看到具体符号外，符号的左侧还有个字母，比如 <code>U</code>、<code>S</code> 等，代表该符号的类型。</p>
+<table>
+<thead>
+<tr>
+<th>符号类型</th>
+<th>解释</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A</td>
+<td>Absolute symbol, global</td>
+</tr>
+<tr>
+<td>a</td>
+<td>Absolute symbol, local</td>
+</tr>
+<tr>
+<td>B</td>
+<td>Uninitialized data (bss), global</td>
+</tr>
+<tr>
+<td>b</td>
+<td>Uninitialized data (bss), local</td>
+</tr>
+<tr>
+<td>D</td>
+<td>Initialized data (bbs), global</td>
+</tr>
+<tr>
+<td>d</td>
+<td>Initialized data (bbs), local</td>
+</tr>
+<tr>
+<td>F</td>
+<td>File name</td>
+</tr>
+<tr>
+<td>l</td>
+<td>Line number entry (see the –a option)</td>
+</tr>
+<tr>
+<td>N</td>
+<td>No defined type, global. This is an unspecified type, compared to the undefined type U.</td>
+</tr>
+<tr>
+<td>U</td>
+<td>No defined type, local. This is an unspecified type, compared to the undefined type U.</td>
+</tr>
+<tr>
+<td>S</td>
+<td>Section symbol, global</td>
+</tr>
+<tr>
+<td>s</td>
+<td>Section symbol, local</td>
+</tr>
+<tr>
+<td>T</td>
+<td>Text symbol, global</td>
+</tr>
+<tr>
+<td>t</td>
+<td>Text symbol, local (static)</td>
+</tr>
+<tr>
+<td>U</td>
+<td>Undefined symbol</td>
+</tr>
+</tbody>
+</table>
+<p>类型较多，不过其实一般只需要记住这两个基本原则：</p>
+<ol>
+<li>大写字母代表 <code>global</code> 符号，小写字母代表 <code>local</code> 符号</li>
+<li><code>U</code> 这种符号是 <code>undefined</code>，很多时候链接时找不到符号有可能是这里的问题：虽然有符号，但是符号是 <code>Undefined</code></li>
+</ol>
+<p>因为经常同一个库支持多个架构，我们还可以限制只打印某个架构的符号 👇🏻</p>
+<pre><code class="language-plain_text">nm --arch arm64 opencv2.framework/opencv2
+</code></pre>
+<h2><a id="%E5%AF%BC%E5%87%BA%E5%92%8C%E6%9F%A5%E7%9C%8Bdwarf" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>导出和查看 DWARF</h2>
+<p>DWARF 的全称是 debugging with attributed record formats，是一种源码调试信息的格式，iOS 经常用到，之前已经单独写了文章，想起可以参考 <a href="16643337564362.html">iOS 符号之 DWARF 和 dSYM</a>。</p>
+<p>主要是用 <code>dsymutil</code> 导出调试符号文件，然后用 <code>dwarfdump</code> 查看。</p>
+<h2><a id="%E5%A4%9A%E6%9E%B6%E6%9E%84%E6%8B%86%E5%88%86%E3%80%81%E5%90%88%E5%B9%B6" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>多架构拆分、合并</h2>
+<p>一个库可能支持多个架构，比如 <code>arm64</code>、<code>x86_64</code> 等等，我们可以使用 <code>lipo</code> 做一些拆分合并操作。</p>
+<h3><a id="%E6%8B%86%E5%88%86%E5%A4%9A%E6%9E%B6%E6%9E%84%E5%BA%93" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>拆分多架构库</h3>
+<p>将某个多架构库的其中某个架构的内容抽成独立的库。</p>
+<pre><code class="language-plain_text">lipo -extract arch_type file
+</code></pre>
+<p>🌰 👇🏻：</p>
+<pre><code class="language-plain_text">lipo -remove x86_64 opencv2.framework/opencv2 -output openCV2_arm64
+</code></pre>
+<p>注意，通过上面的方式得到的库还是多架构库，只是只包含一种架构。</p>
+<p>如果想获得一个单架构库可以通过下面的方式 👇🏻</p>
+<pre><code class="language-plain_text">lipo -thin arch_type &lt;input&gt; -output output
+</code></pre>
+<p>🌰 👇🏻：</p>
+<pre><code class="language-plain_text">lipo -thin arm64 opencv2.framework/opencv2 -output openCV2_arm64_thin
+</code></pre>
+<h3><a id="%E7%A7%BB%E9%99%A4%E6%9F%90%E4%B8%AA%E6%9E%B6%E6%9E%84" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>移除某个架构</h3>
+<pre><code class="language-plain_text">lipo -remove arch_type &lt;input&gt; -output &lt;output&gt;
+</code></pre>
+<p>🌰 👇🏻：</p>
+<pre><code class="language-plain_text">lipo -remove x86_64 opencv2.framework/opencv2 -output openCV2_without_x86_64
+</code></pre>
+<h3><a id="%E5%A4%9A%E4%B8%AA%E5%BA%93%E5%90%88%E5%B9%B6%E6%88%90%E5%8D%95%E4%B8%AA%E5%A4%9A%E6%9E%B6%E6%9E%84%E5%BA%93" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>多个库合并成单个多架构库</h3>
+<pre><code class="language-plain_text">lipo -create &lt;input1&gt; &lt;input2&gt; ... -output opencv2.framework/opencv2
+</code></pre>
+<p>🌰 👇🏻：</p>
+<pre><code class="language-plain_text">lipo -create openCV2_arm64 openCV2_x86_64 -output opencv2.framework/opencv2
+</code></pre>
+<h2><a id="%E5%BA%93%E7%9A%84%E5%90%88%E5%B9%B6" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>库的合并</h2>
+<p>举个例子，如果你的 <code>Test.framework</code> 里用到了另一个 <code>Test.a</code>，一般来讲我们可以将 <code>Test.a</code> 合并到 <code>Test.framework</code> 里，这样使用方只需要理解和引用 <code>Test.framework</code> 就可以了，不需要关心 <code>Test.a</code> 的存在。</p>
+<p>我们可以通过下面这个方式合并：</p>
+<pre><code class="language-plain_text">// 创建静态库
+libtool -static -o output input1 input2 input3 ...
+// 创建动态库
+libtool -dynamic -o output input1 input2 input3 ...
+</code></pre>
+<pre><code class="language-plain_text">libtool -static -o Test.framework/wxaudio Test.a Test.framework/wxaudio
+</code></pre>
+<p>此外，一些常见的参数如下：</p>
+<table>
+<thead>
+<tr>
+<th>参数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>-v</td>
+<td>详细模式，会把执行细节打印出来，方便查问题</td>
+</tr>
+<tr>
+<td>-arch_only</td>
+<td>只合并某个架构，其他架构会被忽略</td>
+</tr>
+</tbody>
+</table>
+
+]]>
+        </content>
+    </entry>
+    
+    <entry>
+        <title type="html">
+            <![CDATA[CMake 实用指南]]>
+        </title>
+        <link href="https://wxdut.com/16705731655475.html" />
+        <updated>2022-12-09T16:06:05+08:00</updated>
+        <id>https://wxdut.com/16705731655475.html</id>
+        <content type="html">
+            <![CDATA[
+<p><code>CMake</code> 是一个开源的管理和生成目标工程的工具。本文将介绍 <code>CMake</code> 的概念和主要能力、交叉编译 <code>iOS</code> 和 <code>Android</code> 平台的 <code>library</code> 的步骤，提供了一个可以直接使用的 <code>demo</code>，并提供了一些编写 <code>CMakeList.txt</code> 的建议。</p>
+<span id="more"></span><!-- more -->
+<h2><a id="cmake%E6%98%AF%E4%BB%80%E4%B9%88" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>CMake 是什么</h2>
+<p><code>CMake</code> 是一个管理源码编译的工具，最初只是为了生成各种 <code>Makefile</code>，现在已经演变成用来生成 <code>XCode</code>、<code>VSCode</code> 等 <code>IDE</code> 的工程，进而再使用对应的 <code>IDE</code> 进行编译。</p>
+<p>使用 <code>CMake</code> 的流程很简单：先编写 <code>CMakeList.txt</code>， 然后使用 <code>CMake</code> 生成目标工程，然后再使用相关的 <code>IDE</code> 等工具进行编译。</p>
+<pre><code class="language-mermaid">sequenceDiagram
+    autonumber
+    participant SourceCode as 源码 + CMakeList.txt
+    participant TargetProject as 目标工程
+    participant TargetBinary as 目标产物
+    SourceCode-&gt;&gt;TargetProject: cmake -G using CMakeList.txt
+    TargetProject-&gt;&gt;TargetBinary: ./gradlew build / xcode build
+    
+</code></pre>
+<p>一个比较常见的用法是编译 <code>C/C++</code> 代码，然后生成 <code>iOS</code> 、<code>Android</code>、<code>macOS</code> 等平台的库，实现用同一份代码、同一个工具链编译出不同平台的库的跨平台能力。</p>
+<p><code>CMake</code> 可以自动生成多平台编译系统，很好的抹平编译中的平台差异，实现一份代码，多端运行。在跨平台开发中发挥着很重要的作用。</p>
+<h2><a id="%E4%B8%BB%E8%A6%81%E6%AD%A5%E9%AA%A4" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>主要步骤</h2>
+<p>从上面的流程图可以很清楚的知道用 <code>Cmake</code> 进行交叉编译，大致分为几个步骤：</p>
+<ol>
+<li>安装 <code>cmake</code>，比如 <code>macOS</code> 上可以通过 <code>brew install cmake</code> 安装。</li>
+<li>编写 <code>CMakeLists.txt</code>，按照 <code>cmake</code> 的语法组织项目。比如需要编译哪个平台的库、头文件有哪些、资源文件有哪些、需要链接那些第三方库等等。</li>
+<li>生成项目工程（下文会详细说，这里简单带过）
+<ol>
+<li>如果是 <code>iOS</code> 或 <code>macOS</code>的话，需要调用 <code>cmake</code> 生成对应的 <code>xcodeproj</code> 工程，然后使用 <code>xcode</code> 编译出产物。还需要下载一个 <a href="https://github.com/leetal/ios-cmake/blob/master/ios.toolchain.cmake">ios.toolchain.cmake</a>，主要是定义一些 <code>cmake</code> 需要的变量，以及指定编译器等等。一般来讲，我们只需要引用这个文件，不需要理解和修改这个文件。然后在调用 <code>cmake</code> 工具生成 <code>xcode</code> 工程时通过参数 <a href="https://cmake.org/cmake/help/latest/variable/CMAKE_TOOLCHAIN_FILE.html">CMAKE_TOOLCHAIN_FILE</a> 传递给 <code>cmake</code>。</li>
+<li>如果是 <code>Android</code> 的话，需要生成一个空的 <code>library</code> 工程，可以通过 <code>Android Studio</code> 生成，很简单。然后在 <code>build.gradle</code> 里指定步骤 <code>2</code> 编写的 <code>CMakeLists.txt</code> 文件，这样 <code>gradle</code> 就知道如何编译出产物。</li>
+</ol>
+</li>
+<li>使用 <code>./gradlew build</code> 或者 <code>xcodebuild</code> 编译出产物。</li>
+</ol>
+<h2><a id="cmakelists-txt%E8%8C%83%E4%BE%8B" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>CMakeLists.txt 范例</h2>
+<p>使用 <code>cmake</code> 时最复杂也是最主要的就是编写 <code>CMakeLists.txt</code> 文件了，需要熟悉和使用 <code>cmake</code> 的语法。官方提供了<a href="https://cmake.org/cmake/help/latest/">文档</a>，在遇到不熟悉的语法时可以直接参阅，推荐多阅读官方文档，高效且准确。</p>
+<p>但是为了快速上手和降低难度，一些中文的实用指南还是很有必要的。这里给一个范例。当然，比较详细的语法太多了，这里无法全部展开，单独搞个 <a href="mweblib://16707673663256">CMake 实用语法</a> 方便查阅，需要用到时翻阅一下即可。</p>
+<p>假设我们要用一份 <code>cpp</code> 代码编译出 <code>Android</code> 平台的 <code>libWxdut.so</code> 和 <code>iOS</code> 平台的 <code>wxdut.framework</code>。一个基本的 <code>CMakeLists.txt</code> 类似下面这样 👇🏻</p>
+<pre><code class="language-plain_text">cmake_minimum_required(VERSION 3.8.0) # 指定 cmake 最低版本
+
+set(LIB_NAME &quot;wxdut&quot;)
+project(${LIB_NAME}) # 项目名称
+
+set(CMAKE_CXX_STANDARD 17) # 编译用到的 c++ 版本
+
+# c/cpp compile flags
+set(CMAKE_C_FLAGS
+    &quot;${CMAKE_C_FLAGS} -Wall -fPIC -frtti -fexceptions -flax-vector-conversions -mfloat-abi=softfp -mfpu=neon&quot;
+)
+set(CMAKE_CXX_FLAGS
+    &quot;${CMAKE_CXX_FLAGS} -Wall -fPIC -frtti -fexceptions -flax-vector-conversions -mfloat-abi=softfp -mfpu=neon&quot;
+)
+
+# 生产环境都是编译 Release 包，本地环境就编译 Debug 包。可以给不同的 Scheme 指定不同的编译参数
+set(CMAKE_C_FLAGS_RELEASE &quot;${CMAKE_C_FLAGS} -Os -DNDEBUG&quot;)
+set(CMAKE_CXX_FLAGS_RELEASE &quot;${CMAKE_CXX_FLAGS} -Os -DNDEBUG&quot;)
+set(CMAKE_C_FLAGS_DEBUG &quot;${CMAKE_C_FLAGS} -O0 -DDEBUG&quot;)
+set(CMAKE_CXX_FLAGS_DEBUG &quot;${CMAKE_CXX_FLAGS} -O0 -DDEBUG&quot;)
+# 在 iOS 上可能有一些比较特殊的 Scheme，比如 Debug_test，可以通过 CMAKE_CXX_FLAGS_ 拼接 Scheme
+# 名字的方式指定特殊参数，比如给 Debug_test 这种 Scheme 设置 -Os 的 Optimization Level
+set(CMAKE_C_FLAGS_DEBUG_TEST &quot;${CMAKE_C_FLAGS} -Os&quot;)
+set(CMAKE_CXX_FLAGS_DEBUG_TEST &quot;${CMAKE_CXX_FLAGS} -Os&quot;)
+
+set(LINK_LIBRARY) # 设置一个名为 LINK_LIBRARY 的变量，并且值为空，下面会把需要链接的库都加进去
+
+if(CMAKE_SYSTEM_NAME MATCHES &quot;iOS&quot;) # CMAKE 开头的变量一般都是 CMAKE
+                                    # 预定义的，我们可以根据这些参数判断平台、架构等等
+  set(IOS ON)
+  add_definitions(-D__IOS__) # 添加一些宏定义，这些宏定义是可以在代码中使用的，比如在代码中通过 #ifdef __IOS__
+                             # 判断当前是否是 iOS 平台
+endif()
+
+if(CMAKE_SYSTEM_NAME MATCHES &quot;Android&quot;)
+  set(ANDROID ON)
+  add_definitions(-D__Android__ -D__ANDROID__)
+  if(CMAKE_ANDROID_ARCH_ABI STREQUAL &quot;arm64-v8a&quot;) # 判断安卓的 ABI
+
+  endif()
+endif()
+
+# Headers
+include_directories(src/include) # 通过这种方式导入头文件，这样就可以在 c/cpp 文件中 #include 这些头文件了
+file(GLOB_RECURSE EXPORT_HEADER_FILES src/include/*.h)
+# 这种方式是给所有 target 引入头文件，还有个 target_include_directories 可以给特定的 target 引入头文件
+
+# 在添加资源文件时不可能枚举所有文件，所以更常见的是使用下面这种递归+模糊搜索的方式
+file(GLOB_RECURSE SRC_SOURCE_FILES src/*.cc) # 递归的查找 src 文件夹下的所有以 .cc
+                                             # 结尾的文件，并将文件路径存到数组 SRC_SOURCE_FILES
+                                             # 中
+
+# 导入库可以用下面这种方式，iOS 和 Android 都是类似的，只不过有一些小区别，比如 Android 需要判断
+# CMAKE_ANDROID_ARCH_ABI，iOS 一般都是双架构的库
+
+if(ANDROID)
+  # 导入 .a 和 .so
+  include_directories(${PROJECT_SOURCE_DIR}/third-party/opencv/android/include)
+  set(LINK_LIBRARY
+      ${LINK_LIBRARY}
+      ${PROJECT_SOURCE_DIR}/third-party/opencv/android/${CMAKE_ANDROID_ARCH_ABI}/libopencv_world.so
+  )
+endif(ANDROID)
+if(IOS)
+  # 导入 framework
+  set(LINK_LIBRARY
+      ${LINK_LIBRARY}
+      ${PROJECT_SOURCE_DIR}/third-party/opencv/ios/opencv2.framework)
+  # tips: 通过上面这个方式链接 framework 时，实际上生成的 xcode 工程里会自动把这个 framework 所在的文件夹加到
+  # Framework Search Paths 里，所以不需要手动调用 include_directories 包含头文件
+endif(IOS)
+
+if(IOS)
+  add_library(
+    ${LIB_NAME} STATIC # 创建一个名为 ${LIB_NAME} 的静态库，资源文件为 ${SRC_SOURCE_FILES} 和
+                       # ${EXPORT_HEADER_FILES}
+    ${SRC_SOURCE_FILES} ${EXPORT_HEADER_FILES})
+
+  set_target_properties(
+    ${LIB_NAME}
+    PROPERTIES FRAMEWORK TRUE # 生成的库为 framework 方式
+               FRAMEWORK_VERSION A
+               MACOSX_FRAMEWORK_IDENTIFIER com.wxdut.${LIB_NAME}
+               RESOURCE &quot;&quot;)
+
+  # 让 xcode 生成并保留调试符号
+  set_xcode_property(${LIB_NAME} GCC_GENERATE_DEBUGGING_SYMBOLS &quot;YES&quot; &quot;All&quot;)
+  set_xcode_property(${LIB_NAME} DEPLOYMENT_POSTPROCESSING &quot;NO&quot; &quot;All&quot;)
+  set_xcode_property(${LIB_NAME} STRIP_INSTALLED_PRODUCT &quot;NO&quot; &quot;All&quot;)
+
+  foreach(hfile ${EXPORT_HEADER_FILES}) # framework 里有一些暴漏出去的头文件，可以以这种方式拷贝过去
+    set_property(
+      SOURCE ${hfile}
+      PROPERTY MACOSX_PACKAGE_LOCATION Headers/ # 头文件会放到
+                                                # ${LIB_NAME}.framework/Headers
+                                                # 文件夹下
+    )
+  endforeach(hfile)
+
+  target_link_libraries(
+    ${LIB_NAME}
+    PRIVATE ${LINK_LIBRARY} # LINK_LIBRARY 是一个数组，上面手动导入的库，这里链接到
+                            # ${LIB_NAME}.framework
+            &quot;-framework JavaScriptCore&quot; # 可以通过这种方式链接一些系统库
+  )
+endif(IOS)
+
+if(ANDROID)
+  add_library(${LIB_NAME} SHARED ${SRC_SOURCE_FILES} ${EXPORT_HEADER_FILES})
+
+  set_target_properties(
+    ${LIB_NAME}
+    PROPERTIES VERSION 1.0.0
+               SOVERSION 1
+               LINK_FLAGS &quot;${LINK_FLAGS}&quot;)
+  target_link_libraries(
+    ${LIB_NAME}
+    EGL
+    GLESv2
+    android
+    log
+    camera2ndk
+    mediandk
+    ${LINK_LIBRARY}) # 链接一些库，比如系统库，或者我们手动导入的库
+  foreach(hfile ${EXPORT_HEADER_FILES}) # 安卓上库的头文件一般会导出到一个文件夹里，我们可以通过这种方式拷贝过去
+    file(COPY ${hfile} DESTINATION ${PROJECT_SOURCE_DIR}/android/include/)
+  endforeach(hfile)
+
+endif(ANDROID)
+</code></pre>
+<h2><a id="%E6%9E%84%E5%BB%BA%E5%92%8C%E7%BC%96%E8%AF%91" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>构建和编译</h2>
+<p>在编写 <code>CMakeLists.txt</code> 之后，就可以生成目标平台的工程，并调用各端的编译工具进行编译。</p>
+<h3><a id="android" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>Android</h3>
+<p>在 <code>Android</code> 上，<code>gradle</code> 可以理解并编译 <code>CMakeLists.txt</code> 所描述的工程。</p>
+<pre><code class="language-plain_text">android {
+    defaultConfig {
+        externalNativeBuild {
+            cmake {
+                targets &quot;wxdut&quot;
+                arguments &quot;-DANDROID_STL=c++_shared&quot;, &quot;-DANDROID_PLATFORM=android-21 -DCMAKE_CXX_STANDARD=17 -DCMAKE_CXX_EXTENSIONS=OFF&quot; # 可以通过 -DXXX 的方式传入参数，然后就可以在 CMakeLists.txt 中获取并使用
+                abiFilters 'armeabi-v7a','arm64-v8a' # 同时编译 64 和 32 位架构
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path &quot;${workspace}/CMakeLists.txt&quot; # 指定 CMakeLists.txt 的路径
+        }
+    }
+    
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt')
+        }
+        debug { // Debug 版本可以把调试都打开，方便调试源码
+            debuggable true
+            jniDebuggable = true
+            ndk {
+                debuggable = true
+            }
+            renderscriptDebuggable true
+            minifyEnabled false
+        }
+    }
+}
+</code></pre>
+<p>然后通过 <code>./gradlew build</code> 或者 <code>Android Studio</code> 编译出产物。</p>
+<h3><a id="ios" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>iOS</h3>
+<p>iOS 端需要使用 <code>cmake</code> 提供的命令生成 <code>xcode</code> 工程，然后使用 <code>xcode</code> 编译出产物。</p>
+<pre><code class="language-plain_text"># CMAKE_CONFIGURATION_TYPES: https://cmake.org/cmake/help/latest/manual/cmake-buildsystem.7.html#build-configurations
+cmake -G Xcode ${CMAKE_LIST_FILE} -B ${BUILD_PATH} \
+  -DCMAKE_TOOLCHAIN_FILE=${TOOLCHAIN_FILE} \
+  -DCMAKE_CONFIGURATION_TYPES=&quot;Debug;Debug_test;Release;Release_appstore;&quot; \
+  -DDEPLOYMENT_TARGET=12.0 \
+  -DPLATFORM=OS64COMBINED \ # 同时编译 arm64 和 x86_64 架构的 framework
+  -DCUSTOM_PARAMS=${PARAMS} \ # 传入自定义的参数，可以在 CMakeLists.txt 里使用
+</code></pre>
+<p>执行上面的命令会生成一个 <code>xcode</code> 工程，然后可以直接用 <code>xcode</code> 打开 <code>wxdut.xcodeproj</code> 进行编译。</p>
+<p>当然，也可以使用 <code>xcodebuild</code> 命令行编译。</p>
+<pre><code class="language-plain_text">xcodebuild -target &quot;ALL_BUILD&quot; \
+    ONLY_ACTIVE_ARCH=NO \
+    -configuration Release \
+    -sdk iphoneos \
+    CONFIGURATION_BUILD_DIR=&quot;${DEVICE_OUTPUT}&quot; \
+    build
+</code></pre>
+<h2><a id="demo%E5%B7%A5%E7%A8%8B" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>demo 工程</h2>
+<p>说了这么多，提供一个可以编译的 <code>demo</code> 及相关工具才更实用，一个可运行的工程最有价值。</p>
+<p>在 <code>demo</code> 中，会提供一个 <code>iOS</code> 的 <code>demo</code> 和一个 <code>Android</code> 的 <code>demo</code>，使用同一个 <code>CMakeList.txt</code> 文件进行交叉编译，并在 <code>demo</code> 中调用编译产物的 <code>API</code>。</p>
+<p>希望大家能关注我的公众号，回复 <code>cmake</code> 即可得到 <code>demo</code> 工程。</p>
+<p><img src="media/16705731655475/16713511189252.jpg" alt="" /><br />
+<img src="media/16705731655475/16713510430756.jpg" alt="" /></p>
+<h2><a id="%E7%BC%96%E5%86%99cmakelist-txt%E7%9A%84%E4%B8%80%E4%BA%9B%E5%BB%BA%E8%AE%AE" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>编写 CMakelist.txt 的一些建议</h2>
+<p><code>CMakelist.txt</code> 的语法略显笨重和繁琐，给一些建议。</p>
+<h3><a id="%E6%A0%BC%E5%BC%8F%E5%8C%96" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>格式化</h3>
+<p><code>CMakelist.txt</code> 行数通常会比较多，为了便于理解和维护，最好能像平时写代码一样格式化一下。<br />
+我目前是用的这个开源工具，还挺好用的，推荐给大家：<a href="https://github.com/cheshirekow/cmake_format">cmake_format</a></p>
+<h3><a id="%E6%A8%A1%E5%9D%97%E6%8B%86%E5%88%86" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>模块拆分</h3>
+<p>在实际开发中，可以考虑将业务模块化，将底层的模块单独抽离一个 <code>CMakelist.txt</code> 做下沉，然后上层的 <code>CMakelist.txt</code> 通过 <code>add_subdirectory</code> 的方式引用。</p>
+<p>这样不仅让每个 <code>CMakelist.txt</code> 都很小便于阅读和维护，而且还能让项目结构和依赖更加清晰明了。</p>
+<h3><a id="%E5%A6%82%E4%BD%95%E5%BF%AB%E9%80%9F%E6%8E%8C%E6%8F%A1cmakelist-txt%E8%AF%AD%E6%B3%95" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>如何快速掌握 CMakeList.txt 语法</h3>
+<p>估计大多数人首次看到 <code>CMakeList.txt</code> 的语法格式都很懵逼，新的语法格式，而且之前完全没了解过，如何快速上手呢。</p>
+<p>其实所有语法在<a href="https://cmake.org/cmake/help/latest/index.html">官方文档</a>里都有详细的介绍，对新手来说最大的问题是不熟悉语法格式，以及不知道具体有哪些语法和能力，真正用的时候不知道怎么找到对应的语法。</p>
+<h4><a id="%E8%AF%AD%E6%B3%95%E6%A0%BC%E5%BC%8F" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>语法格式</h4>
+<p>以操作文件为例，官方的语法基本是这样，其中：</p>
+<ol>
+<li><strong>全大写的 <code>GLBO</code>、<code>COPY</code> 这种就是关键词</strong>，类似于 <code>c++</code> 里的 <code>const</code>、<code>float</code> 这种保留字符，有特殊的含义，直接原样写上就行。</li>
+<li><code>&lt;out-var&gt;</code> 这种<strong>一个尖括号 <code>&lt;&gt;</code> 里包含一个变量名，就是代表这里是需要填一个变量</strong>，可以作为入参，也可以用于语法执行完之后获取执行结果。</li>
+<li><code>&lt;files&gt;...</code> 这种变量后面跟着 <strong><code>...</code> 代表可以传多个参数（至少传一个参数）。</strong></li>
+<li><code>[&lt;globbing-expr&gt;...]</code> 这种<strong>中括号 <code>[]</code> 括起来的是可选参数</strong>，可以传参也可以直接忽略。其中<strong>如果有 <code>...</code> 这种就表示可以传多个参数（也可以一个参数都不传）。</strong></li>
+<li><code>REMOVE | REMOVE_RECURSE</code> 这种<strong>用 <code>|</code> 隔开，代表多选一</strong>，比如可以使用 <code>REMOVE</code>，也可以用 <code>REMOVE_RECURSE</code>。</li>
+</ol>
+<p><img src="media/16705731655475/16728052397476.jpg" alt="" /></p>
+<p>举个例子，比如下面这个语法：</p>
+<pre><code class="language-plain_text">file({GLOB | GLOB_RECURSE} &lt;out-var&gt; [...] [&lt;globbing-expr&gt;...])
+</code></pre>
+<p>首先 <code>{GLOB | GLOB_RECURSE}</code> 二选一，<code>&lt;out-var&gt;</code> 填一个变量名，<code>[...]</code> 代表可选，<code>[&lt;globbing-expr&gt;...]</code> 表示可以传 0 个或者多个参数。</p>
+<p>不过我发现部分命令中，<code>[]</code> 内的变量至少要传一个参数，比如下面这个，必须要传至少一个文件夹名，否则会报错。报错很好理解，因为既然是创建文件夹不传文件名咋创建，但是为何官方文档里用的 <code>[]</code> 暂时不清楚。</p>
+<pre><code class="language-plain_text">file(MAKE_DIRECTORY [&lt;directories&gt;...])
+</code></pre>
+<h4><a id="%E5%A6%82%E4%BD%95%E6%9F%A5%E6%89%BE%E5%88%B0%E5%AF%B9%E5%BA%94%E7%9A%84%E8%AF%AD%E6%B3%95" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>如何查找到对应的语法</h4>
+<p>有时候我们想实现一些能力，比如在 <code>CMakeList.txt</code> 里执行一个 <code>shell</code> 脚本，可能不知道语法是什么，甚至也不知道能否实现。这时候建议直接在官方文档里<a href="https://cmake.org/cmake/help/latest/search.html">搜索</a>。</p>
+<p>比如执行 <code>shell</code> 脚本，那大概应该搜索 <code>shell</code>、<code>commands</code>这种关键词。搜一下就可以看到 <code>add_custom_command</code> 或许可以实现。</p>
+<p><img src="media/16705731655475/16728335968064.jpg" alt="" /></p>
+<p>当然，也可以 <code>Google</code> 一下。</p>
+
+]]>
+        </content>
+    </entry>
+    
+    <entry>
+        <title type="html">
+            <![CDATA[一分钟下载最新 XCode]]>
+        </title>
+        <link href="https://wxdut.com/16680671661314.html" />
+        <updated>2022-11-10T15:59:26+08:00</updated>
+        <id>https://wxdut.com/16680671661314.html</id>
+        <content type="html">
+            <![CDATA[
+<p>国内下载和更新 <code>XCode</code> 简直一言难尽，慢的一批。通过 <code>Apple Store</code> 可以下载大半天，通过其他渠道也得几个小时。最近发现了一个小工具，可以占满宽带<strong>满速下载</strong> <code>XCode</code>，比如 <code>500M</code> 的宽带，下载速度可以达到 <strong>50M Bps 以上</strong>。</p>
+<span id="more"></span><!-- more -->
+<h2><a id="%E6%95%88%E6%9E%9C%E4%B8%8E%E4%BC%98%E5%8A%BF" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>效果与优势</h2>
+<p>我家里是 <code>500M</code> 宽带，理论最大下载速度为 <code>62.5M Bps</code>，实际下载速度基本都在 <code>50M Bps</code> 以上，这太恐怖了。<br />
+<img src="media/16680671661314/16681482781388.jpg" alt="" /></p>
+<p><strong>优势：</strong></p>
+<ol>
+<li>下载速度非常快，最高可以同时开 <code>16</code> 个网络连接并行下载。</li>
+<li>可以同时下载多个版本的 <code>XCode</code>，并一键切换。</li>
+</ol>
+<h2><a id="%E9%A1%B9%E7%9B%AE%E4%B8%8E%E4%BD%BF%E7%94%A8%E6%96%B9%E5%BC%8F" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>项目与使用方式</h2>
+<p>这个工具是国外一个开源的 <code>Github</code> 仓库，地址为 <a href="https://github.com/RobotsAndPencils/XcodesApp">XcodesApp</a>。可以在<a href="https://github.com/RobotsAndPencils/XcodesApp/releases">这里</a>下载最新的 <code>release</code> 版本。<br />
+<img src="media/16680671661314/16681482039217.jpg" alt="" /></p>
+<p>使用方式也很简单，直接选择想下载的版本，然后点击右侧的 <code>Install</code> 即可。<br />
+<img src="media/16680671661314/16681500274682.jpg" alt="" /></p>
+<p>下载完成后会自动安装，然后点击 <code>Make active</code> 把某个版本作为默认版本，这样诸如 <code>xcodebuild</code> 之类的命令行工具都会用这个版本的 <code>Xcode</code> 的那一份。<br />
+<img src="media/16680671661314/16681501743903.jpg" alt="" /></p>
+<h2><a id="%E4%BD%BF%E7%94%A8%E6%8A%80%E5%B7%A7%E4%B8%8E%E9%87%87%E5%9D%91" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>使用技巧与采坑</h2>
+<h3><a id="app%E5%90%AF%E5%8A%A8%E6%97%B6%E5%BE%88%E6%85%A2" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>APP 启动时很慢</h3>
+<p>有时候我们会同时安装多个版本的 <code>XCode</code>，并在多个版本之间切换使用，会出现编译运行 <code>APP</code> 之后一直卡在首页非常久，并且会有下面这个 <code>warning</code>：</p>
+<pre><code class="language-plain_text">warning: libobjc.A.dylib is being read from process memory. This indicates that LLDB could not find the on-disk shared cache for this device. This will likely reduce debugging performance.
+</code></pre>
+<p>解决办法是：</p>
+<ol>
+<li>rm -r ~/Library/Developer/Xcode/iOS\ DeviceSupport</li>
+<li>重启 <code>XCode</code></li>
+</ol>
+<h3><a id="%E8%87%AA%E5%8A%A8%E6%9B%B4%E6%96%B0xcode%E5%91%BD%E5%90%8D" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>自动更新 XCode 命名</h3>
+<p>当我们把某个版本的 <code>XCode</code> <code>active</code> 之后，可以设置自动更名为 <code>XCode</code>，并自动把之前旧的 <code>XCode</code> 更名为 <code>XCode-version-xxx</code>。这样我们默认使用的 <code>XCode</code> 一直是最常用的版本，当我们需要使用其他版本的时候再去打开对应的版本即可。</p>
+<p><img src="media/16680671661314/16682674904320.jpg" alt="" /><br />
+<img src="media/16680671661314/16682676200390.jpg" alt="" /></p>
+
+]]>
+        </content>
+    </entry>
+    
+    <entry>
+        <title type="html">
+            <![CDATA[Shell 脚本最佳实践]]>
+        </title>
+        <link href="https://wxdut.com/16670224867027.html" />
+        <updated>2022-10-29T13:48:06+08:00</updated>
+        <id>https://wxdut.com/16670224867027.html</id>
+        <content type="html">
+            <![CDATA[
+<p>工作五年来，为了不断提高效率给老板创造更多的价值，我对 Shell 脚本的使用越来越多。我一直主张一个很好理解的观点：电脑每秒可以计算上亿次，人工需要干一天的任务，Shell 脚本只需要 1 秒。这种效率的提升可以帮我们节省大量的时间。</p>
+<p>本文会介绍常见的语法和用法，以及一些实用技巧。</p>
+<span id="more"></span><!-- more -->
+<h2><a id="shell%E3%80%81bash%E3%80%81zsh%E5%88%86%E5%88%AB%E6%98%AF%E4%BB%80%E4%B9%88" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>Shell、Bash、ZSH 分别是什么</h2>
+<p>人和电脑交互，有两种方式，一种是通过软件程序，用鼠标一顿点击，这种属于 <code>graphical user interface (GUI)</code>，还有一种是通过命令行和电脑交互，比如使用电脑的 <code>Terminal</code> 程序执行命令，这种属于 <code>command-line interface (CLI)</code>。</p>
+<p><code>Shell</code> 提供了通过 <code>CLI</code> 和电脑交互的能力，编写的脚本称为 <code>Shell 脚本</code>。编写的脚本类似于 <code>JS</code> 一样需要解析器翻译成机器能理解的语言，这种解释器有多种，常见的有 <code>bash</code> <code>zsh</code> <code>sh</code> 等等。</p>
+<p>当然，最常用的还是 <code>bash</code>，苹果电脑默认就用的 <code>bash</code>。本文默认也使用 <code>bash</code>。</p>
+<h2><a id="%E6%9B%B4%E6%96%B0%E5%8D%87%E7%BA%A7bash" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>更新升级 Bash</h2>
+<p>一般来讲苹果系统自带的 <code>Bash</code> 版本较低，如果想使用一些新的语法，比如 <code>map</code>，就需要用到更高版本。</p>
+<p>系统默认的 <code>bash</code> 在 <code>/bin/bash</code>，不建议动这个。可以下载个新的，然后在脚本中手动指定使用新版本的 <code>bash</code> 即可。</p>
+<pre><code class="language-plain_text"># 安装最新版本的bash
+brew install bash
+# 安装完成后会告诉你新版本的路径，比如 /usr/local/Cellar/bash/5.2.2/bin/bash
+# 需要把新版本的shell添加至信任列表中
+sudo bash -c 'echo /usr/local/Cellar/bash/5.2.2/bin/bash &gt;&gt; /etc/shells'
+</code></pre>
+<p>然后在脚本中的第一行手动指定要使用的 <code>bash</code> 版本。</p>
+<pre><code class="language-plain_text">#!/usr/local/Cellar/bash/5.2.2/bin/bash
+</code></pre>
+<p>使用这种手动指定的路径要确认该脚本是否会在其他机器上执行，如果是的话，新机器的这个路径下大概率是没有新版本的 <code>bash</code> 的。</p>
+<h2><a id="%E5%9F%BA%E6%9C%AC%E8%AF%AD%E6%B3%95" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>基本语法</h2>
+<p>前言：在 <code>shell</code> 脚本中，要养成良好的习惯，空格、对齐、都要按照格式来，不要轻易省略换行、空格等，一是可以保持代码整洁，二是避免产生语法错误。</p>
+<h3><a id="if%E6%9D%A1%E4%BB%B6" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>if 条件</h3>
+<p><code>if</code> 条件大致有几种，分别是 <code>if</code>、<code>if else</code>、<code>if elif</code>。</p>
+<p><strong>基本形式</strong></p>
+<p>一个基本的 <code>if</code> 条件类似于这样：</p>
+<pre><code class="language-plain_text">if [ &lt;some test&gt; ]
+then
+    &lt;commands&gt;
+elif [ &lt;some test&gt; ]
+then
+    &lt;different commands&gt;
+else
+    &lt;other commands&gt;
+fi
+</code></pre>
+<p>其中，<code>then</code> 可以和 <code>if</code> 写在同一行，👇🏻 我比较喜欢这一种，因为少一行显得更简洁。</p>
+<pre><code class="language-plain_text">if [ &lt;some test&gt; ] ; then
+    &lt;commands&gt;
+elif [ &lt;some test&gt; ] ; then
+    &lt;different commands&gt;
+else
+    &lt;other commands&gt;
+fi
+</code></pre>
+<p><strong>判断条件</strong></p>
+<p>了解了格式之后，还剩一个重点就是 <code>[]</code> 之间的内容，也就是判断条件。</p>
+<p>其实这个 <code>[]</code> 是调用了 <code>test</code> 指令。在命令行里输入 <code>test 1 -eq 1</code> 等同于 <code>shell</code> 里的 <code>if [ 1 -eq 1 ] ; then</code>。这么一来就简单了，我们只需要了解 <code>test</code> 的用法，就会各种 <code>if</code> 条件的判断了。</p>
+<p>我们可以输入 <code>man test</code> 查看详细的用法。因为用法太多，这里不贴完了。</p>
+<p><img src="media/16670224867027/16671279468007.jpg" alt="" /></p>
+<p>这里列举一下常用的判断条件。</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left">Operator</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left">! EXPRESSION</td>
+<td>The EXPRESSION is false.</td>
+</tr>
+<tr>
+<td style="text-align: left">-n STRING</td>
+<td>The length of STRING is greater than zero.</td>
+</tr>
+<tr>
+<td style="text-align: left">-z STRING</td>
+<td>The lengh of STRING is zero (ie it is empty).</td>
+</tr>
+<tr>
+<td style="text-align: left">STRING1 = STRING2</td>
+<td>STRING1 is equal to STRING2</td>
+</tr>
+<tr>
+<td style="text-align: left">INTEGER1 -eq INTEGER2</td>
+<td>INTEGER1 is numerically equal to INTEGER2</td>
+</tr>
+<tr>
+<td style="text-align: left">INTEGER1 -gt INTEGER2</td>
+<td>INTEGER1 is numerically greater than INTEGER2</td>
+</tr>
+<tr>
+<td style="text-align: left">INTEGER1 -lt INTEGER2</td>
+<td>INTEGER1 is numerically less than INTEGER2</td>
+</tr>
+<tr>
+<td style="text-align: left">-d FILE</td>
+<td>FILE exists and is a directory.</td>
+</tr>
+<tr>
+<td style="text-align: left">-e FILE</td>
+<td>FILE exists.</td>
+</tr>
+<tr>
+<td style="text-align: left">-r FILE</td>
+<td>FILE exists and the read permission is granted.</td>
+</tr>
+<tr>
+<td style="text-align: left">-s FILE</td>
+<td>FILE exists and it's size is greater than zero (ie. it is not empty).</td>
+</tr>
+<tr>
+<td style="text-align: left">-w FILE</td>
+<td>FILE exists and the write permission is granted.</td>
+</tr>
+<tr>
+<td style="text-align: left">-x FILE</td>
+<td>FILE exists and the execute permission is granted.</td>
+</tr>
+</tbody>
+</table>
+<p>举个例子，判断第一个参数 <code>$1</code> 是否大于 <code>100</code>：</p>
+<pre><code class="language-plain_text">if [ $1 -gt 100 ] ; then
+    echo Hey that\'s a large number.
+    pwd
+fi
+</code></pre>
+<p><strong>类似 C 语言的判断</strong></p>
+<p>上面的方式可以判断文件是否存在、字符串相等等复杂场景。如果是判断整数之间的关系，还有一种方式：可以把 <code>[]</code> 替换为 <code>(())</code>，然后 <code>(())</code> 中间的语句可以用类似于 <code>c</code> 语言的语法判断整数之间的关系。</p>
+<p>比如上面的例子可以用下面的方式改写：</p>
+<pre><code class="language-plain_text">if (( $1 &gt; 100 )) ; then
+    echo Hey that\'s a large number.
+    pwd
+fi
+</code></pre>
+<p>更复杂点，可以用模运算判断是否是偶数：👇🏻</p>
+<pre><code class="language-plain_text">if (( $1 % 2 == 0 )) ; then
+    echo And is also an even number.
+fi
+</code></pre>
+<p><strong>&amp;&amp; 和 ||</strong></p>
+<p><code>if</code> 条件还有个知识点：<code>&amp;&amp;</code> 和 <code>||</code>，也就是判断条件的并和或。这里直接上例子：</p>
+<pre><code class="language-plain_text">if [ -r $1 ] &amp;&amp; [ -s $1 ] ; then
+    echo This file is useful.
+fi
+
+if [ $USER == 'bob' ] || [ $USER == 'andy' ] ; then
+    ls -alh
+else
+    ls
+fi
+</code></pre>
+<h3><a id="for%E5%BE%AA%E7%8E%AF" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>for 循环</h3>
+<p><strong>基本形式</strong></p>
+<p>首先看一下基本语法。下面这个例子里是打印当前脚本的所有入参。<code>$@</code> 可以获取所有入参组成的数组。</p>
+<pre><code class="language-plain_text">for i in $@
+do
+   echo &quot;Scrip arguments: $i&quot;
+done
+</code></pre>
+<p>和 <code>for</code> 循环类似，<code>do</code> 也可以和 <code>for</code> 写在同一行：</p>
+<pre><code class="language-plain_text">for i in $@ ; do
+   echo &quot;Scrip arguments: $i&quot;
+done
+</code></pre>
+<p>接下来直接举几个常见的用法：</p>
+<p><strong>遍历 n 个指定的元素</strong></p>
+<pre><code class="language-plain_text">for i in 1 3 10 2 100
+do
+   echo &quot;Welcome $i times&quot;
+done
+
+$ ./test.sh
+Welcome 1 times
+Welcome 3 times
+Welcome 10 times
+Welcome 2 times
+Welcome 100 times
+</code></pre>
+<p><strong>遍历数字范围</strong></p>
+<pre><code class="language-plain_text">for i in {1..5}
+do
+   echo &quot;Welcome $i times&quot;
+done
+
+$ ./test.sh
+Welcome 1 times
+Welcome 2 times
+Welcome 3 times
+Welcome 4 times
+Welcome 5 times
+</code></pre>
+<p><strong>遍历数组</strong></p>
+<pre><code class="language-plain_text">DEVICES=('iPhone' 'iWatch' 'iPad')
+for device in &quot;${DEVICES[@]}&quot;
+do
+  echo &quot;Buy $device.&quot;
+done
+
+$ ./test.sh
+Buy iPhone.
+Buy iWatch.
+Buy iPad.
+</code></pre>
+<p><strong>遍历文件夹</strong></p>
+<pre><code class="language-plain_text">for file in /etc/*
+do
+    if [ &quot;${file}&quot; == &quot;/etc/resolv.conf&quot; ] ; then
+        break
+    fi
+done
+</code></pre>
+<p><strong>遍历字符串</strong></p>
+<pre><code class="language-plain_text">PKGS=&quot;php7-openssl-7.3.19-r0  php7-common-7.3.19-r0  php7-fpm-7.3.19-r0  php7-opcache-7.3.19-r0 php7-7.3.19-r0&quot;
+for p in $PKGS
+do
+   echo &quot;Installing $p package&quot;
+done
+
+$ ./test.sh
+Installing php7-openssl-7.3.19-r0 package
+Installing php7-common-7.3.19-r0 package
+Installing php7-fpm-7.3.19-r0 package
+Installing php7-opcache-7.3.19-r0 package
+Installing php7-7.3.19-r0 package
+</code></pre>
+<p><strong>类似 C 语言的循环</strong></p>
+<pre><code class="language-plain_text">## The C-style Bash for loop ##
+for (( initializer; condition; step ))
+do
+  shell_COMMANDS
+done
+</code></pre>
+<p>举个例子 👇🏻</p>
+<pre><code class="language-plain_text"># set counter 'c' to 1 and condition 
+# c is less than or equal to 5
+for (( c=1; c&lt;=5; c++ ))
+do 
+   echo &quot;Welcome $c times&quot;
+done
+
+$ ./test.sh
+Welcome 1 times
+Welcome 2 times
+Welcome 3 times
+Welcome 4 times
+Welcome 5 times
+</code></pre>
+<h3><a id="switch-case" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>switch-case</h3>
+<p>语法如下。如果 <code>$var</code> 匹配 <code>pattern 1</code>，则执行符号 <code>)</code> 和 <code>;;</code> 之间的语句。</p>
+<p>其中，匹配条件（比如 <code>pattern 1</code> ）支持通配符 <code>*</code>。</p>
+<pre><code class="language-plain_text">case &lt;variable&gt; in
+&lt;pattern 1&gt;)
+    &lt;commands&gt;
+    ;;
+&lt;pattern 2&gt;)
+    &lt;other commands&gt;
+    ;;
+esac
+</code></pre>
+<p>举个例子：👇🏻</p>
+<pre><code class="language-plain_text">CARS=&quot;bmw&quot;
+case &quot;$CARS&quot; in
+    #case 1
+    &quot;mercedes&quot;) echo &quot;Headquarters - Affalterbach, Germany&quot; ;;
+    #case 2
+    &quot;audi&quot;) echo &quot;Headquarters - Ingolstadt, Germany&quot; ;;
+    #case 3
+    &quot;bmw&quot;) echo &quot;Headquarters - Chennai, Tamil Nadu, India&quot; ;;
+esac
+</code></pre>
+<p>执行一下：👇🏻</p>
+<pre><code class="language-plain_text">$ ./main.sh
+Headquarters - Chennai, Tamil Nadu, India.
+</code></pre>
+<h2><a id="%E5%B8%B8%E8%A7%81%E6%8A%80%E5%B7%A7" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>常见技巧</h2>
+<h3><a id="%E4%BC%A0%E5%8F%82%E4%B8%8E%E8%A7%A3%E6%9E%90" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>传参与解析</h3>
+<p>有时候需要传入一些参数，然后脚本根据不同的参数执行不同的逻辑。</p>
+<p>获取函数或脚本的入参可以使用下面这些命令。</p>
+<pre><code class="language-plain_text">echo &quot;Shell 传递参数实例！&quot;;
+echo &quot;第一个参数为：$1&quot;;
+echo &quot;参数个数为：$#&quot;;
+echo &quot;传递的参数作为一个字符串显示：$*&quot;;
+# 依次打印所有入参 👇🏻
+for i in &quot;$@&quot;; do
+    echo $i
+done
+</code></pre>
+<p>上面几个命令只是作为个别简单场景使用。如果是获取脚本的入参，一般使用下面这种比较常规的方式。👇🏻</p>
+<p>传参一般有两种方式：<code>./test.sh --flag 1</code> 或 <code>./test.sh --flag=1</code>。区别是参数后面是跟着空格还是等于号。</p>
+<p>其中 <code>./test.sh --flag 1</code> 这种传参也可以灵活调整变化：<br />
+① 把 <code>flag</code> 缩写成 <code>f</code>：<code>./test.sh --f 1</code><br />
+② 两个 <code>--</code> 也可以缩短成一个 <code>-</code>：<code>./test.sh -flag 1</code><br />
+③ 只传标记位不传具体值：<code>./test.sh --flag</code></p>
+<p>反正按自己需求灵活使用吧，下面给个模板：</p>
+<pre><code class="language-plain_text">#!/bin/bash
+
+# 传参方式：./test.sh --flag 1 或者 ./test.sh --flag
+
+set -e
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -f|--flag)
+      EXTENSION=&quot;$2&quot;
+      shift # past argument
+      shift # past value
+      ;;
+    --default)
+      DEFAULT=YES
+      shift # past argument
+      ;;
+    *)
+      echo &quot;Unknown option $1&quot;
+      exit 1
+      ;;
+  esac
+done
+</code></pre>
+<p>同样的，带等于号的传参模板也给一下。</p>
+<pre><code class="language-plain_text">for i in &quot;$@&quot;; do
+  case $i in
+    -f=*|--flag=*)
+      EXTENSION=&quot;${i#*=}&quot;
+      shift # past argument=value
+      ;;
+    --default)
+      DEFAULT=YES
+      shift # past argument with no value
+      ;;
+    *)
+      echo &quot;Unknown option $i&quot;
+      exit 1
+      ;;
+  esac
+done
+</code></pre>
+<h3><a id="try-catch" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>try-catch</h3>
+<p>Shell 没有支持类似于其他语言的 try-catch 能力。但是我们可以曲线救国。</p>
+<pre><code class="language-plain_text">{ # try
+  commands 1 &amp;&amp;
+  commands 2 &amp;&amp;  
+  echo &quot;exec successfully.&quot;
+} || { # catch
+  echo &quot;exec fail&quot; &amp;&amp;
+  exit -1
+}
+</code></pre>
+<p>利用 <code>||</code> 的特性，前半部分执行失败后才会执行后半部分，刚好达到 try-catch 的效果。</p>
+<h3><a id="%E7%BB%88%E6%AD%A2%E5%9B%9E%E8%B0%83" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>终止回调</h3>
+<p>有时候需要在脚本执行完毕后做一些清理操作，或者在脚本异常终止时做一些额外的逻辑，就需要监听脚本执行终止。</p>
+<pre><code class="language-plain_text">function exit_handler ()
+{
+    CODE=$? # #? 是获取上一条指令的返回码，所以要在 exit_handler 的第一行获取一下存到变量里
+    SH_NAME=$(echo &quot;$0&quot; | grep -o '[^/]*$')
+    if [ $CODE == 0 ] ; then
+        echo &quot;[info] $SH_NAME finish successfully&quot;
+    else
+        &gt;&amp;2 echo &quot;[error] $SH_NAME exit with err code $CODE&quot;
+    fi
+}
+trap exit_handler EXIT
+
+exit 255 # 错误码范围为 [0,255]
+</code></pre>
+<h3><a id="echo%E5%BD%A9%E8%89%B2%E5%AD%97%E4%BD%93" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>echo 彩色字体</h3>
+<p>在 Shell 脚本中，经常会通过 <code>echo</code> 命令打印日志，如果能改变日志的文字颜色还是挺好的，比如输出错误信息时将字体变成红色以增强提示，成功了就绿色喜庆一点。</p>
+<p>这里给一个颜色的合集，可以随意选用。</p>
+<pre><code class="language-plain_text">#!/usr/local/Cellar/bash/5.2.2/bin/bash
+declare -A colors
+
+# Reset
+colors[Color_Off]='\033[0m'       # No Color
+
+# Regular Colors
+colors[Black]='\033[0;30m'        # Black
+colors[Red]='\033[0;31m'          # Red
+colors[Green]='\033[0;32m'        # Green
+colors[Yellow]='\033[0;33m'       # Yellow
+colors[Blue]='\033[0;34m'         # Blue
+colors[Purple]='\033[0;35m'       # Purple
+colors[Cyan]='\033[0;36m'         # Cyan
+colors[White]='\033[0;37m'        # White
+
+# Bold
+colors[BBlack]='\033[1;30m'       # Black
+colors[BRed]='\033[1;31m'         # Red
+colors[BGreen]='\033[1;32m'       # Green
+colors[BYellow]='\033[1;33m'      # Yellow
+colors[BBlue]='\033[1;34m'        # Blue
+colors[BPurple]='\033[1;35m'      # Purple
+colors[BCyan]='\033[1;36m'        # Cyan
+colors[BWhite]='\033[1;37m'       # White
+
+# Underline
+colors[UBlack]='\033[4;30m'       # Black
+colors[URed]='\033[4;31m'         # Red
+colors[UGreen]='\033[4;32m'       # Green
+colors[UYellow]='\033[4;33m'      # Yellow
+colors[UBlue]='\033[4;34m'        # Blue
+colors[UPurple]='\033[4;35m'      # Purple
+colors[UCyan]='\033[4;36m'        # Cyan
+colors[UWhite]='\033[4;37m'       # White
+
+# Background
+colors[On_Black]='\033[40m'       # Black
+colors[On_Red]='\033[41m'         # Red
+colors[On_Green]='\033[42m'       # Green
+colors[On_Yellow]='\033[43m'      # Yellow
+colors[On_Blue]='\033[44m'        # Blue
+colors[On_Purple]='\033[45m'      # Purple
+colors[On_Cyan]='\033[46m'        # Cyan
+colors[On_White]='\033[47m'       # White
+
+# High Intensity
+colors[IBlack]='\033[0;90m'       # Black
+colors[IRed]='\033[0;91m'         # Red
+colors[IGreen]='\033[0;92m'       # Green
+colors[IYellow]='\033[0;93m'      # Yellow
+colors[IBlue]='\033[0;94m'        # Blue
+colors[IPurple]='\033[0;95m'      # Purple
+colors[ICyan]='\033[0;96m'        # Cyan
+colors[IWhite]='\033[0;97m'       # White
+
+# Bold High Intensity
+colors[BIBlack]='\033[1;90m'      # Black
+colors[BIRed]='\033[1;91m'        # Red
+colors[BIGreen]='\033[1;92m'      # Green
+colors[BIYellow]='\033[1;93m'     # Yellow
+colors[BIBlue]='\033[1;94m'       # Blue
+colors[BIPurple]='\033[1;95m'     # Purple
+colors[BICyan]='\033[1;96m'       # Cyan
+colors[BIWhite]='\033[1;97m'      # White
+
+# High Intensity backgrounds
+colors[On_IBlack]='\033[0;100m'   # Black
+colors[On_IRed]='\033[0;101m'     # Red
+colors[On_IGreen]='\033[0;102m'   # Green
+colors[On_IYellow]='\033[0;103m'  # Yellow
+colors[On_IBlue]='\033[0;104m'    # Blue
+colors[On_IPurple]='\033[0;105m'  # Purple
+colors[On_ICyan]='\033[0;106m'    # Cyan
+colors[On_IWhite]='\033[0;107m'   # White
+
+white=${colors[White]}
+
+for key in ${!colors[*]}
+do
+  echo -e &quot;$key = ${colors[$key]} I love you $white&quot;
+done
+</code></pre>
+
+]]>
+        </content>
+    </entry>
+    
+    <entry>
+        <title type="html">
+            <![CDATA[iOS 符号之 DWARF 和 dSYM]]>
+        </title>
+        <link href="https://wxdut.com/16643337564362.html" />
+        <updated>2022-09-28T10:55:56+08:00</updated>
+        <id>https://wxdut.com/16643337564362.html</id>
+        <content type="html">
+            <![CDATA[
+<p>作为专业的开发者，除了依赖 Ctrl + C 和 Ctrl + V 之外，还非常依赖源码调试。在使用 IDE 进行单步调试时，我们可以很方便的逐行执行源码。本文介绍一下相关的知识和原理。</p>
+<span id="more"></span><!-- more -->
+<p><strong>注意，简单起见，本文的描述默认都是以 iOS 平台为准，毕竟本文是介绍 iOS 调试的。</strong></p>
+<h2><a id="%E5%8D%95%E6%AD%A5%E8%B0%83%E8%AF%95%E7%9A%84%E3%80%8C%E5%81%87%E8%B1%A1%E3%80%8D" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>单步调试的「假象」</h2>
+<p><img src="media/16643337564362/16649580254644.jpg" alt="" /></p>
+<p>如图，当前执行到哪一行，以及对应的函数堆栈是什么都一目了然，了解编译流程后就知道这显然是「假象」，因为构建完成后已经是机器码了，哪来的 <strong>viewDidLoad</strong> 这种字符串信息。</p>
+<p>此外，日常开发时遇到 crash 时一般都会有堆栈信息，以及 crash 时所执行的代码的行号，这些信息对定位问题非常重要。</p>
+<p>上面两个能力都是依赖 DWARF 和 dSYM 实现的。下面具体介绍下。</p>
+<h2><a id="dwarf%E5%92%8C-dsym%E6%98%AF%E4%BB%80%E4%B9%88" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>DWARF 和 dSYM 是什么</h2>
+<p>DWARF 的全称是 debugging with attributed record formats，是一种源码调试信息的格式，注意，DWARF 是一种格式。</p>
+<p>dSYM 的全称是 Debug Symbols，也就是调试符号，一般称为符号文件，注意，dSYM 是一个文件，里面的内容是 DWARF 格式的信息。</p>
+<p>此外，DWARF 和 dSYM 是公共的标准，并不是只有苹果特有的，只不过主要是苹果在用而已。</p>
+<p>关于 DWARF 的更多信息可以参考 <a href="https://dwarfstd.org/">The DWARF Debugging Standard</a>。</p>
+<p>这里我们引用网站里的介绍来加深对 DWARF 的理解：</p>
+<blockquote>
+<p>DWARF是一种调试文件格式，许多编译器和调试器都使用它来支持源级调试。它满足了许多过程语言的需求，如c、c++ 和 Fortran，并被设计为可扩展到其他语言。DWARF 是独立于体系结构的，适用于任何处理器或操作系统。它在 Unix、Linux 和其他操作系统以及独立环境中广泛使用。</p>
+</blockquote>
+<p><img src="media/16643337564362/16649589399883.jpg" alt="" /></p>
+<p>那么 DWARF 具体是怎样的格式呢。这里给个例子。我们可以通过 DWARF 清晰的看到函数的描述、行号、所在文件、虚拟地址等重要信息，有了这些信息，就可以实现单步调试以及查看 crash 堆栈等能力。</p>
+<p><img src="media/16643337564362/16649593863440.jpg" alt="" /></p>
+<h2><a id="%E7%94%9F%E6%88%90dsym%E6%96%87%E4%BB%B6%E5%B9%B6%E6%9F%A5%E7%9C%8B-dwarf%E4%BF%A1%E6%81%AF" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>生成 dSYM 文件并查看 DWARF 信息</h2>
+<p>如果已有一个 iOS APP 文件，如何导出 dSYM 文件呢（导出后才更方便的查看 DWARF 信息）。</p>
+<pre><code class="language-plain_text">// 进入 app 文件目录
+cd /Users/xxx/AppMobile.app
+// 导出符号信息到 dSYM 文件
+dsymutil AppMobile // dsymutil 默认会导出一个同名的 dSYM 文件，在这里就是 AppMobile.dSYM
+// 查看 dSYM 文件中的 DWARF 信息
+dwarfdump AppMobile.dSYM
+</code></pre>
+<h2><a id="debug%E5%8C%85%E7%9A%84%E7%AC%A6%E5%8F%B7" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>Debug 包的符号</h2>
+<p>通过上面的步骤，我们可以从 APP 中导出和查看 DWARF 信息了，这里有个前提就是 APP 里需要包含符号信息，不然就不存在导出的事情了。</p>
+<p>Debug 情况下相对简单些，XCode 会帮我们处理好符号问题。在 XCode 中可以配置如何处理符号信息。<br />
+<img src="media/16643337564362/16649603115491.jpg" alt="" /></p>
+<h2><a id="release%E5%8C%85%E7%9A%84%E7%AC%A6%E5%8F%B7" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>Release 包的符号</h2>
+<p>在发布时，我们会发布 Release 包，这时候就需要将 APP 中的符号信息导出到单独的 dSYM 文件，然后 strip 掉 APP 中的符号信息，避免泄漏源码信息。</p>
+<p>在上传 APP 到 Apple Store之后，如果用户发生了闪退，则我们需要拿到堆栈信息，然后通过 dSYM 找到对应的符号信息，进而定位和修复问题。</p>
+<p>应用闪退时，我们可以拿到对应的 APP 的 UUID，然后找到相同 UUID 的 dSYM 文件，就可以一一对应上。</p>
+<p>可以通过这个命令查看 dSYM 文件的 UUID：</p>
+<pre><code class="language-plain_text">dwarfdump -u AppMobile.dSYM
+</code></pre>
+<h2><a id="%E7%AC%A6%E5%8F%B7%E4%BF%A1%E6%81%AF%E7%9A%84%E7%94%9F%E6%88%90%E6%97%B6%E6%9C%BA" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>符号信息的生成时机</h2>
+<p>符号信息如此重要，在 APP 的构建过程中是怎样生成的呢，在网上找到一个图，还挺清晰，可以参考下。<a href="https://cloud.tencent.com/developer/article/1822554">Xcode编译疾如风-3.浅谈 dwarf 和 dSYM</a></p>
+<p><img src="media/16643337564362/16649609259796.jpg" alt="" /></p>
+
+]]>
+        </content>
+    </entry>
+    
+    <entry>
+        <title type="html">
+            <![CDATA[iTerm Hotkey Window 使用]]>
+        </title>
+        <link href="https://wxdut.com/16616695302192.html" />
+        <updated>2022-08-28T14:52:10+08:00</updated>
+        <id>https://wxdut.com/16616695302192.html</id>
+        <content type="html">
+            <![CDATA[
+<p><a href="https://iterm2.com/">iTerm</a> 是 Mac Terminal 的替代品，提供了比 Mac 自带 Terminal 不知道好到哪里去的体验。墙裂推荐大家用起来。今天介绍的小技巧也是基于 iTerm 提供的能力。</p>
+<p>在 Mac 上经常需要使用到命令行，比如操作 git 仓库等等。正常来讲，每次打开命令行都要点一下 Dock 里的应用图标才行。这对于频繁使用命令行工具的场景实在效率太低。我们可以使用 iTerm 提供的 Hotkey Window 实现快捷键一键开启和关闭命令行页面。</p>
+<span id="more"></span><!-- more -->
+<h2><a id="%E6%95%88%E6%9E%9C%E5%B1%95%E7%A4%BA" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>效果展示</h2>
+<p>先录个屏，看看效果，然后再具体介绍。<br />
+<a href="media/16616695302192/iterm_hotkey_window.mp4"></a><br />
+<video id="video" controls="" preload="metadata" height=100% width=100%><br />
+<source id="mp4" src="media/16616695302192/iterm_hotkey_window.mp4" type="video/mp4"><br />
+</video></p>
+<p>可以看到视频里，鼠标没动，就可以控制命令行页面的显示和隐藏，并且自带动画。当然，如果当前是全屏页面，其实也没什么区别，只是录屏里没体现而已。</p>
+<h2><a id="%E5%A2%9E%E5%8A%A0hotkey-window" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>增加 Hotkey Window</h2>
+<p>iTerm 设置 --&gt; Hotkey --&gt; Create a Dedicated Hotkey Window...</p>
+<p><img src="media/16616695302192/16616708618635.jpg" alt="" /></p>
+<p>然后设置 Hotkey Window 的一些属性。</p>
+<p><img src="media/16616695302192/16616710179703.jpg" alt="" /></p>
+<ol>
+<li>第一个红框里用于设置快捷键，这样后续操作这个快捷键就可以显示和隐藏 iTerm 了。</li>
+<li>第二个红框的两个选项都选中一下，其中 Floating Window 这个选项可以让 iTerm 覆盖到全屏页面上。</li>
+<li>第三个红框是指当你点击 Dock 的时候的表现，这里建议选第三个。这样可以实现用快捷键打开 Hotkey Window，点击 Dock 打开非 Hotkey 的 Window。</li>
+</ol>
+<h2><a id="%E9%85%8D%E7%BD%AEhotkey-window" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>配置 Hotkey Window</h2>
+<p>在增加了一个 Hotkey Window 之后，可以去 Preferences --&gt; Profiles 进行定制化的设置。</p>
+<p>比如当打开一个 tab 时，默认是打开用户根目录的，也就是 ~ 。可以在这里设置自定义的目录。</p>
+<p><img src="media/16616695302192/16616713474500.jpg" alt="" /></p>
+<h2><a id="%E4%B8%80%E4%BA%9B%E8%BF%87%E4%BA%8E%E7%BB%86%E8%87%B4%E7%9A%84%E8%A7%A3%E9%87%8A%E3%80%82%E3%80%82" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>一些过于细致的解释。。</h2>
+<p>Hotkey Window 的快捷键建议设置为随手就能操作的，并且不和主流 Hotkey 冲突的。</p>
+<p>比如我是设置为 Command + D，虽然 D 这个字母和命令行没啥关系，但是方便呀，又不和其他  Hotkey 冲突。因为左手一般都会放置到打字指法的默认位。</p>
+<p><img src="media/16616695302192/16616717755506.jpg" alt="" /></p>
+<p>如上图，四个手指默认会放置到 A S D F 这四个字母上。其中：</p>
+<p>Command + A 是全选，不能覆盖<br />
+Command + S 是保存，不能覆盖<br />
+Command + F 是搜索，不能覆盖<br />
+那就只剩 Command + D 了，鉴于终端操作对我来说非常频繁，所以就把这个位置用于 Hotkey 了。</p>
+<h2><a id="session%E6%81%A2%E5%A4%8D" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>Session 恢复</h2>
+<p>一般来讲我们会开多个 <code>Session</code>，也就是多个 <code>tab</code>，类似于下面这样。<br />
+<img src="media/16616695302192/16724804903836.jpg" alt="" /></p>
+<p>每次重启电脑后，这些 <code>tab</code> 要重新打开，然后重新进入对应的目录，有点麻烦。我们可以通过下面的方式设置 <code>iTerm2</code> 启动时自动恢复上一次打开的 <code>tab</code>。</p>
+<p><strong>1. 首先把 iTerm2 设置里的 restore policy 设为系统默认</strong></p>
+<p><img src="media/16616695302192/16724806023075.jpg" alt="" /></p>
+<p><strong>2. 在系统设置中关闭下面这个设置</strong></p>
+<p>不同系统版本的路径可能不同，可以直接搜索 <code>close window</code> 找到这个选项。</p>
+<p><img src="media/16616695302192/16724807077959.jpg" alt="" /></p>
+<p>详情参考：<a href="https://apple.stackexchange.com/questions/22445/how-can-i-save-tabs-in-iterm-2-so-they-restore-the-next-time-the-app-is-run">How can I save tabs in iTerm 2 so they restore the next time the app is run?</a></p>
+<p>除此之外，每次关机 <code>iTerm</code> 都会提示这个，还得手动点一次。</p>
+<p><img src="media/16616695302192/16724808708594.jpg" alt="" /></p>
+<p>既然我们都设置了自动恢复 <code>Session</code>，关闭时就没必要提醒了，反正下次还能恢复。</p>
+<p>可以通过取消勾选这两个设置达到关闭 <code>iTerm</code> 时不弹窗提示的目的。</p>
+<p><img src="media/16616695302192/16724810094871.jpg" alt="" /></p>
+
+]]>
+        </content>
+    </entry>
+    
+    <entry>
+        <title type="html">
+            <![CDATA[iOS 性能调优 - 耗时分析]]>
+        </title>
+        <link href="https://wxdut.com/16610143872563.html" />
+        <updated>2022-08-21T00:53:07+08:00</updated>
+        <id>https://wxdut.com/16610143872563.html</id>
+        <content type="html">
+            <![CDATA[
+<span id="more"></span><!-- more -->
+<h2><a id="%E8%80%97%E6%97%B6%E6%98%AF%E6%80%A7%E8%83%BD%E7%9A%84%E9%87%8D%E8%A6%81%E6%8C%87%E6%A0%87" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>耗时是性能的重要指标</h2>
+<p>为了更好的性能和体验，开发中对每个函数的耗时要有一定的把控，特别是主线程，函数的执行时间要严格控制，否则会引起主线程卡顿，影响用户体验。</p>
+<p>当软件发生卡顿时，就需要分析耗时，定位引发性能的函数，进而分析和优化。</p>
+<p>耗时分析肯定不是挨个函数打 log，不然一天调试一个 bug，老板怎么给你算工资。</p>
+<p>iOS 中可以用 xCode 自带的分析工具「Time Profiler」。它可以自动分析你手机上运行的软件的线程运行情况、函数执行耗时、CPU 占用情况等等。</p>
+<p><strong>如果你不熟悉 Instruments，或者遇到了无符号、手机连不上等各类问题，建议先看看 <a href="16782743400583.html">XCode Instruments 使用</a>。</strong></p>
+<h2><a id="%E6%89%93%E5%BC%80time-profile" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>打开 Time Profile</h2>
+<p><img src="media/15831553619652/15831681833983.jpg" alt="" style="width:594px;" /></p>
+<p><img src="media/15831553619652/15831682262547.jpg" alt="" style="width:770px;" /></p>
+<h2><a id="time-profile%E7%95%8C%E9%9D%A2%E4%B8%BB%E8%A6%81%E6%93%8D%E4%BD%9C%E8%AF%B4%E6%98%8E" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>Time Profile 界面主要操作说明</h2>
+<p><img src="media/15831553619652/15835028965092.jpg" alt="" /></p>
+<h2><a id="profile%E7%BB%93%E6%9E%9C%E5%88%86%E6%9E%90" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>Profile 结果分析</h2>
+<p>点击开始，然后操作软件，操作完毕点击停止。鼠标选中CPU占用较高的一部分，然后面板下侧会出现详细的分析结果。</p>
+<p><img src="media/15831553619652/15831586058590.jpg" alt="" /></p>
+<p>有个技巧，引起卡顿一般是业务代码引起的，系统逻辑一般不会有问题，所以我们直接把系统的调用隐藏，函数会更少更清晰。</p>
+<p><img src="media/15831553619652/15831596470000.jpg" alt="" /></p>
+
+]]>
+        </content>
+    </entry>
+    
+    <entry>
+        <title type="html">
+            <![CDATA[过渡到 ARC 的发布说明]]>
+        </title>
+        <link href="https://wxdut.com/16610143605149.html" />
+        <updated>2022-08-21T00:52:40+08:00</updated>
+        <id>https://wxdut.com/16610143605149.html</id>
+        <content type="html">
+            <![CDATA[
+<p>太忙了，这篇官方文档的译文​断断续续写了两三个月，终于写完了。</p>
+<span id="more"></span><!-- more -->
+<p>本文翻译自 <a href="https://developer.apple.com/library/archive/releasenotes/ObjectiveC/RN-TransitioningToARC/Introduction/Introduction.html">Transitioning to ARC Release Notes</a>。意译，并补充了一些理解和说明。</p>
+<p>在 <a href="https://mp.weixin.qq.com/s/oIVg30SQ6adqNng7d9nDaw">iOS MRC 内存管理的基本原则</a> 和 <a href="https://mp.weixin.qq.com/s/awn4Y5rCF2CX7PViIXdFSw">iOS MRC 内存管理的实用技巧</a> 之后，终于可以讲到 ARC 了。</p>
+<!-- more -->
+<p>ARC 的全称是 Automatic Reference Counting，自动引用计数。</p>
+<p>之前聊 MRC 时提到，管理引用计数这个工作，不应该交给开发者去做，太繁琐，而且容易出错。完全可以放到编译器去做。ARC 就是这样，会在编译期自动帮助开发者添加合适的内存管理代码。</p>
+<p>开发者再也不同到处 retain release 了！</p>
+<p><img src="media/15850594760587/15866789761246.jpg" alt="" /></p>
+<p>如图所示，在编译期，会自动加上 retain release 等内存管理代码，开发者只需要专注于开发业务逻辑即可。</p>
+<h2><a id="arc%E7%9A%84%E7%89%88%E6%9C%AC%E5%85%BC%E5%AE%B9" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>ARC 的版本兼容</h2>
+<p>提到新功能，就不得不提兼容性。最坑的就是要兼容旧版本。ARC 倒是很舒服了，目前微信这种超级 APP 已经最低支持 iOS 10 了，而且 XCode 也发布了 11.5 正式版，已经完全支持 ARC 了，所以不需要兼容旧版本。</p>
+<h2><a id="arc%E4%B8%80%E8%A7%88" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>ARC 一览</h2>
+<h3><a id="arc%E7%9A%84%E6%96%B0%E8%A7%84%E5%88%99" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>ARC 的新规则</h3>
+<p>ARC 规定了一些和 MRC 不同的规则，如果开发者未遵循，则会直接无法编译通过。</p>
+<ul>
+<li>不可以直接调用 dealloc 方法，不可以调用和实现 retain、release、retainCount、autorelease。</li>
+<li>可以实现 dealloc 方法做一些释放资源的逻辑，但是不可以调用 [super dealloc]，否则无法编译通过。对 super 的调用由编译器自动完成。</li>
+<li>ARC 是适用于 OC 对象，Core Function 对象的内存管理还要继续使用 CFRetain, CFRelease 等方法。</li>
+<li>不可以使用 NSAllocateObject 和 NSDeallocateObject，创建对象使用 alloc，释放对象由系统自动完成。</li>
+<li>不可以使用 C 结构的对象指针，不能使用 struct，而是使用 OC 的类作为替代。</li>
+<li>id 和 void * 之间不能随意转换。在 Cocoa 和 Core Function 对象交互时需要处理内存管理问题，参考后面提到的「管理 TFB」。</li>
+<li>不能使用 NSAutoreleasePool，可以使用 @autoreleasepool 块，后者比前者更高效。</li>
+<li>不再需要使用 NSZone，新的 OC 运行时会忽略 NSZone。</li>
+</ul>
+<p>为了和 MRC 的代码共存，ARC 在函数命名上加了一些限制：</p>
+<ul>
+<li>getter 的函数名不能以 new 开头，比如声明一个属性，属性名不能以 new 开头，除非特殊指定 getter 的名字。</li>
+</ul>
+<pre><code class="language-plain_text">// Won't work:
+@property NSString *newTitle;
+ 
+// Works:
+@property (getter=theNewTitle) NSString *newTitle;
+</code></pre>
+<h3><a id="arc%E5%BC%95%E5%85%A5%E4%BA%86%E6%96%B0%E7%9A%84%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F%E9%99%90%E5%AE%9A%E7%AC%A6" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>ARC引入了新的生命周期限定符</h3>
+<p>ARC引入了一些对象的生命周期限定符，以及弱引用。弱引用不会让对象的引用计数 +1，并且在对象被释放时弱引用会自动变成 nil。</p>
+<p>ARC 并不能防止循环引用的出现，可以使用弱引用解决这个问题。</p>
+<h3><a id="property%E7%9A%84%E5%B1%9E%E6%80%A7" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>Property 的属性</h3>
+<p>增加了 strong 和 weak 两种属性，其中对象默认是 strong 的。 </p>
+<pre><code class="language-plain_text">// The following declaration is a synonym for: @property(retain) MyClass *myObject;
+@property(strong) MyClass *myObject;
+ 
+// The following declaration is similar to &quot;@property(assign) MyClass *myObject;&quot;
+// except that if the MyClass instance is deallocated,
+// the property value is set to nil instead of remaining as a dangling pointer.
+@property(weak) MyClass *myObject;
+</code></pre>
+<h3><a id="%E5%8F%98%E9%87%8F%E9%99%90%E5%AE%9A%E7%AC%A6" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>变量限定符</h3>
+<p>ARC 增加了下面几种限定符：</p>
+<ul>
+<li>__strong 默认值，只要有指针指向，就不会被释放</li>
+<li>__weak 不持有对象，指向一个对象时不影响对象的回收，对象被回收后变成 nil，常用于处理循环引用问题</li>
+<li>__unsafe_unretained 不持有对象，指向一个对象时不影响对象的回收，对象被回收后变成野指针，常用于处理循环引用问题</li>
+<li>__autoreleasing 在最近的自动释放池结束的时候被释放，常用于函数中传入二级指针 id *</li>
+</ul>
+<p>限定符的正确用法格式如下：</p>
+<pre><code class="language-plain_text">ClassName * qualifier variableName;
+</code></pre>
+<p>例如：</p>
+<pre><code class="language-plain_text">MyClass * __weak myWeakReference;
+MyClass * __unsafe_unretained myUnsafeReference;
+</code></pre>
+<p>其他形式都是无效的，会被编译器忽略。</p>
+<p>在使用 __weak 的时候要注意对象被立即释放的问题：</p>
+<pre><code class="language-plain_text">// string 的引用计数为 0，会被自动释放
+NSString * __weak string = [[NSString alloc] initWithFormat:@&quot;First Name: %@&quot;, [self firstName]];
+NSLog(@&quot;string: %@&quot;, string);
+</code></pre>
+<p>关于二级指针 id *，有个点需要留意下。</p>
+<pre><code class="language-plain_text">NSError *error;
+BOOL OK = [myObject performOperationWithError:&amp;error];
+if (!OK) {
+    // Report the error.
+    // ...
+</code></pre>
+<p>上面这段代码很常见，其中 &amp;error 是二级指针，编译器会自动加上 __autoreleasing 的逻辑。编译后的代码会变成这样：</p>
+<pre><code class="language-plain_text">NSError * __strong error;
+NSError * __autoreleasing tmp = error;
+BOOL OK = [myObject performOperationWithError:&amp;tmp];
+error = tmp;
+if (!OK) {
+    // Report the error.
+    // ...
+</code></pre>
+<h3><a id="%E4%BD%BF%E7%94%A8%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F%E9%99%90%E5%AE%9A%E7%AC%A6%E6%9D%A5%E9%81%BF%E5%85%8D%E5%BE%AA%E7%8E%AF%E5%BC%95%E7%94%A8" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>使用生命周期限定符来避免循环引用</h3>
+<p>使用生命周期限定符可以避免循环引用。例如，比较典型的例子：一个 Parent 类需要持有一个 Child 类，而 Child 类同时也需要持有 Parent 类，这种是经典的循环引用关系。为了解决这个问题，我们可以让 Parent 强持有（strong）Child，让 Child 弱持有（weak）Parent。</p>
+<p>上面的 Parent - Child 结构是最简单直观的例子。还有一些隐性持有的场景，会更加不易发现。比如 Block 引用了 Self，但并不是那么直观。</p>
+<p>关于 __block 修饰符，在 MRC 中，<code>__block id x</code> 中 x 的引用计数不会增加，但是在 ARC 中，x 的引用计数会增加。可以使用 <code>__unsafe_unretained __block id x</code> 来达到不增加引用计数的目的。顾名思义，__unsafe_unretained 不会 retain x（也就是不会增加引用计数），但是是 unsafe 的，当对象被释放后，x 就变成了野指针。</p>
+<p>常见的两种方式是，使用 __weak 修饰符，或者在 block 执行完毕后将 x 设为 nil。</p>
+<p>在 MRC 中，有以下这种写法：</p>
+<pre><code class="language-plain_text">MyViewController *myController = [[MyViewController alloc] init…];
+// ...
+myController.completionHandler =  ^(NSInteger result) {
+   [myController dismissViewControllerAnimated:YES completion:nil];
+};
+[self presentViewController:myController animated:YES completion:^{
+   [myController release];
+}];
+</code></pre>
+<p>可以增加 __block 修饰符，在 block 的末尾将对象置为 nil：</p>
+<pre><code class="language-plain_text">MyViewController * __block myController = [[MyViewController alloc] init…];
+// ...
+myController.completionHandler =  ^(NSInteger result) {
+    [myController dismissViewControllerAnimated:YES completion:nil];
+    myController = nil;
+};
+</code></pre>
+<p>也可以使用 __weak，这样就不用手动置为 nil 了：</p>
+<pre><code class="language-plain_text">MyViewController *myController = [[MyViewController alloc] init…];
+// ...
+MyViewController * __weak weakMyViewController = myController;
+myController.completionHandler =  ^(NSInteger result) {
+    [weakMyViewController dismissViewControllerAnimated:YES completion:nil];
+};
+</code></pre>
+<p>使用 __weak 就没了循环引用的问题，所以在 block 中要先判空：</p>
+<pre><code class="language-plain_text">MyViewController *myController = [[MyViewController alloc] init…];
+// ...
+MyViewController * __weak weakMyController = myController;
+myController.completionHandler =  ^(NSInteger result) {
+    MyViewController *strongMyController = weakMyController;
+    if (strongMyController) {
+        // ...
+        [strongMyController dismissViewControllerAnimated:YES completion:nil];
+        // ...
+    }
+    else {
+        // Probably nothing...
+    }
+};
+</code></pre>
+<p>建议使用 __weak，如果使用 __unsafe_unretained，就要防止野指针的问题。</p>
+<h3><a id="%E5%9C%A8arc%E4%B8%AD%E4%BD%BF%E7%94%A8%E8%87%AA%E5%8A%A8%E9%87%8A%E6%94%BE%E6%B1%A0" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>在 ARC 中使用自动释放池</h3>
+<p>在 ARC 中不能使用 NSAutoreleasePool，取而代之的是 @autoreleasepool block。</p>
+<pre><code class="language-plain_text">@autoreleasepool {
+     // Code, such as a loop that creates a large number of temporary objects.
+}
+</code></pre>
+<p>这个结构会让编译器跟踪对象的引用技术状态，在 @autoreleasepool 的入口将自动释放池压栈，在 @autoreleasepool 结束时弹栈，然后释放所有 autorelease 并且引用计数为 1 的对象。</p>
+<h3><a id="%E6%A0%88%E5%AF%B9%E8%B1%A1%E5%9C%A8%E5%A3%B0%E6%98%8E%E7%9A%84%E6%97%B6%E5%80%99%E8%87%AA%E5%8A%A8%E8%A2%AB%E7%BD%AE%E4%B8%BAnil" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>栈对象在声明的时候自动被置为 nil</h3>
+<p>在 ARC 中，栈对象在声明时自动被置为 nil，不会再出现一些可能的 crash。例如：</p>
+<pre><code class="language-plain_text">- (void)myMethod {
+    NSString *name;
+    NSLog(@&quot;name: %@&quot;, name); // 输出 (null)
+}
+</code></pre>
+<h3><a id="%E8%AE%A9%E7%BC%96%E8%AF%91%E5%99%A8%E5%90%AF%E7%94%A8%E5%92%8C%E7%A6%81%E7%94%A8arc" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>让编译器启用和禁用 ARC</h3>
+<p>首先在项目设置里指定整个工程是否使用 ARC，然后对于某个文件，可以使用编译参数指定其是否使用 ARC。</p>
+<ul>
+<li>-fobjc-arc 启用 ARC</li>
+<li>-fno-objc-arc 禁用 ARC</li>
+</ul>
+<h2><a id="%E7%AE%A1%E7%90%86%E5%AF%B9%E8%B1%A1%E6%A1%A5%E6%8E%A5%EF%BC%88toll-free-bridging%EF%BC%89" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>管理对象桥接（Toll-Free Bridging）</h2>
+<p>在 iOS 开发中，Foundation Framework 提供的是一堆 OC 类型（比如 NSString, NSDictionary），Core Foundation 提供了一堆 C 类型（比如 CFString, CFDictionary）。二者的对象在使用时存在数据类型相互转换的问题。比如在一个接受 CFString 对象的函数，能否直接传入 NSString 的对象，以及怎么把一个 CFString 转为 NSString。iOS 提供了一个解决方案，叫做 Toll-Free Bridging，简称 TFB。简单了说，就是二者可以直接强转。</p>
+<p>可以自动转换的类型有很多：<br />
+<img src="media/15850594760587/15908409486787.jpg" alt="" /></p>
+<p>有规则就有特例，有三种无法直接转换的类型：</p>
+<ul>
+<li>NSRunloop vs CFRunLoop</li>
+<li>NSBundle vs CFBundle</li>
+<li>NSDateFormatter vs CFDateFormatter</li>
+</ul>
+<p>在类型转换的时候，存在对象的归属问题。比如转换之后，谁负责将引用计数减一。</p>
+<p>TFB 类型转换，转换之后对象还是同一个，只是可以在不同的 Framework 之间同时使用而已。所以在 MRC 时，TFB 的内存管理比较简单直接。</p>
+<p>在使用 ARC 的情况下，由于 Core Foundation 无法使用 ARC，所以在转换时就需要指定对象的归属问题，不然编译器不知道该怎么增加合适的内存管理代码。</p>
+<p>在类型转换时，主要有三种内存管理的转移方式：</p>
+<ul>
+<li>__bridge 类型转换时不改变持有关系。Foundation 对象和 Core Foundation 对象相互转换时，不涉及内存管理的转移，比如把一个 Foundation 对象转成 Core Foundation 对象，在 Foundation 侧管理引用计数，转换时对象的引用计数不变。</li>
+<li>__bridge_retained / CFBridgingRetain 把一个 Foundation 对象转为 Core Foundation 对象时，转移对象持有关系，也就是在 Core Foundation 侧负责将对象的引用计数减一。</li>
+<li>__bridge_transfer / CFBridgingRelease 把一个 Core Foundation 对象转为 Foundation 对象时，转移对象持有关系，也就是在 Foundation 侧负责将对象的引用计数减一。不过由于 ARC 帮我们做了内存管理，所以这个最省事，不需要管。</li>
+</ul>
+<p>例如在 MRC 环境下的逻辑：</p>
+<pre><code class="language-plain_text">- (void)logFirstNameOfPerson:(ABRecordRef)person {
+ 
+    NSString *name = (NSString *)ABRecordCopyValue(person, kABPersonFirstNameProperty);
+    NSLog(@&quot;Person's first name: %@&quot;, name);
+    [name release];
+}
+</code></pre>
+<p>在 ARC 环境下，可以改为：</p>
+<pre><code class="language-plain_text">- (void)logFirstNameOfPerson:(ABRecordRef)person {
+ 
+    NSString *name = (NSString *)CFBridgingRelease(ABRecordCopyValue(person, kABPersonFirstNameProperty)); // OC 侧负责将引用计数减一，但是不需要开发者操心，ARC 会帮忙处理的
+    NSLog(@&quot;Person's first name: %@&quot;, name);
+}
+</code></pre>
+<h3><a id="%E7%BC%96%E8%AF%91%E5%99%A8%E4%BC%9A%E8%87%AA%E5%8A%A8%E5%A4%84%E7%90%86oc%E5%87%BD%E6%95%B0%E8%BF%94%E5%9B%9E%E7%9A%84-cf%E5%AF%B9%E8%B1%A1" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>编译器会自动处理 OC 函数返回的 CF 对象</h3>
+<p>编译器在处理 OC 函数返回 CF 对象的情况时，遵循 Cocoa 命名规范 <a href="https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/MemoryMgmt/Articles/MemoryMgmt.html#//apple_ref/doc/uid/10000011i">Advanced Memory Management Programming Guide</a>。</p>
+<p>比如，[UIColor CGColor] 返回的对象，根据命名规范，OC 侧不持有对象。</p>
+<p>并且，需要进行合适的类型转换。</p>
+<pre><code class="language-plain_text">NSMutableArray *colors = [NSMutableArray arrayWithObject:(id)[[UIColor darkGrayColor] CGColor]];
+[colors addObject:(id)[[UIColor lightGrayColor] CGColor]];
+</code></pre>
+<h3><a id="%E5%87%BD%E6%95%B0%E5%8F%82%E6%95%B0%E7%B1%BB%E5%9E%8B%E8%BD%AC%E6%8D%A2" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>函数参数类型转换</h3>
+<p>当函数的形参和实参一个是 OC 对象，另一个是 CF 对象时，存在 TFB 类型转换问题，需要通过关键字告诉编译器内存管理权属。</p>
+<p>CF 的内存管理原则可以参考：<a href="https://developer.apple.com/library/archive/documentation/CoreFoundation/Conceptual/CFMemoryMgmt/CFMemoryMgmt.html#//apple_ref/doc/uid/10000127i">Memory Management Programming Guide for Core Foundation</a>。OC 的内存管理原则可以参考：<a href="https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/MemoryMgmt/Articles/MemoryMgmt.html#//apple_ref/doc/uid/10000011i">Advanced Memory Management Programming Guide</a>。</p>
+<p>在下面这个例子中，形参用 __bridge 修饰，也就是不会发生持有关系变化。ARC 需要负责 array 的释放。</p>
+<pre><code class="language-plain_text">NSArray *colors = &lt;#An array of colors#&gt;;
+CGGradientRef gradient = CGGradientCreateWithColors(colorSpace, (__bridge CFArrayRef)colors, locations);
+</code></pre>
+<p>下面这段代码是官方的例子，涉及了一些相互转换的场景：</p>
+<pre><code class="language-plain_text">- (void)drawRect:(CGRect)rect {
+    CGContextRef ctx = UIGraphicsGetCurrentContext();
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceGray();
+    CGFloat locations[2] = {0.0, 1.0};
+    NSMutableArray *colors = [NSMutableArray arrayWithObject:(id)[[UIColor darkGrayColor] CGColor]];
+    [colors addObject:(id)[[UIColor lightGrayColor] CGColor]];
+    CGGradientRef gradient = CGGradientCreateWithColors(colorSpace, (__bridge CFArrayRef)colors, locations);
+    CGColorSpaceRelease(colorSpace);  // Release owned Core Foundation object.
+    CGPoint startPoint = CGPointMake(0.0, 0.0);
+    CGPoint endPoint = CGPointMake(CGRectGetMaxX(self.bounds), CGRectGetMaxY(self.bounds));
+    CGContextDrawLinearGradient(ctx, gradient, startPoint, endPoint,
+                                kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation);
+    CGGradientRelease(gradient);  // Release owned Core Foundation object.
+}
+</code></pre>
+<h2><a id="%E6%8A%8Amrc%E9%A1%B9%E7%9B%AE%E8%BD%AC%E4%B8%BA-arc%E6%97%B6%E7%9A%84%E4%B8%80%E4%BA%9B%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>把 MRC 项目转为 ARC 时的一些常见问题</h2>
+<p>把一个已有的 MRC 项目转为 ARC 时，会遇到各种各样的问题，这里列举了一些常见的问题，以及对应的解决办法。</p>
+<ul>
+<li>不可以对一个对象发送 retain、release、autorelease、retainCount 消息，一个类也不可以继承这些函数</li>
+<li>不可以对一个对象发送 dealloc 消息</li>
+<li>不能使用 NSAutoreleasePool，取而代之的是 @autoreleasepool{}。后者的性能大约是前者的六倍。</li>
+<li>init 对象时的标准做法如下</li>
+</ul>
+<pre><code class="language-plain_text">self = [super init];
+if (self) {
+   ...
+</code></pre>
+<ul>
+<li>MRC 里直接赋值的形式，不会使对象的引用计数增加；在 ARC 中，对象直接复制会增加引用计数。在 MRC 中直接赋值一般都是为了达到弱引用的目的，在 ARC 中，使用 weak/__weak 关键字即可。</li>
+<li>在 C 的结构里不能使用 id，否则会编不过。</li>
+</ul>
+<pre><code class="language-plain_text">struct X { id x; float y; };
+</code></pre>
+<p>如果一定要在 C 的结构里使用 id，需要声明为 __unsafe_unretained</p>
+<pre><code class="language-plain_text">struct x { NSString * __unsafe_unretained S; int X; }
+</code></pre>
+<p>这是官方文档里提到的，我理解是在 ARC 只支持 OC，不支持 C 语言，比如上面 TFB 就是为了解决 ARC 不支持 C 语言的问题。这里同理，如果不加 __unsafe_unretained，默认就是 strong，也就是 ARC，而 ARC 并不支持 C 语言。</p>
+<ul>
+<li>id 和 void* 不可直接类型强转</li>
+</ul>
+<h2><a id="faq" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>FAQ</h2>
+<ul>
+<li>该怎么理解 ARC 呢？ARC 在哪里添加了 retain/release ？</li>
+</ul>
+<p>本文最开始提到，ARC 只是在编译器自动帮助开发者添加了合适的内存管理代码，比如 retain/release，从而释放了更多开发者的精力去放到逻辑本身。</p>
+<p>官方文档中建议开发者直接关注 strong、weak、循环引用等 ARC 引入的新知识即可，不需要去理会 ARC 的具体实现细节。</p>
+<p>我认为平时写代码时不需要去思考 retain/release（只需要防止循环引用与内存泄漏即可），但是要在业余时间了解 MRC 和 ARC，了解二者的细节、区别，这样才能更深入的掌握 ARC。</p>
+<p>知其然，知其所以然。</p>
+<ul>
+<li>是否还需要实现dealloc方法？</li>
+</ul>
+<p>ARC中会自动管理内存的释放，CF、文件描述符等等这类C语言的类不支持ARC，还是需要手动在dealloc函数中释放内存，另外比如kvo、notification等逻辑，都需要在dealloc中反注册。</p>
+<p>ARC中也不能调用<code>[super dealloc];</code>，运行时会强制调用super链。</p>
+<ul>
+<li>ARC 中还存在循环引用吗？</li>
+</ul>
+<p>存在。ARC 只是自动添加了合适的内存管理代码。如果两个或多个strong的对象相互引用，还是会造成循环引用。</p>
+<ul>
+<li>ARC 中如何使用 block</li>
+</ul>
+<p>ARC 中可以正常使用 block。</p>
+<p>另外，如果想从 block 中修改外部变量的值，可以使用 __block 关键字。</p>
+<pre><code class="language-plain_text">NSString * __block myString; // block持有myString
+__block NSString * __unsafe_unretained myString; // block不持有myString（当心野指针）
+__block NSString * __weak myString; // block不持有myString
+</code></pre>
+<ul>
+<li>在 ARC 中，能否在 C 的数组中添加 strong 的 OC 对象</li>
+</ul>
+<p>可以。举个例子：</p>
+<pre><code class="language-plain_text">// Note calloc() to get zero-filled memory.
+__strong SomeClass **dynamicArray = (__strong SomeClass **)calloc(entries, sizeof(SomeClass *));
+for (int i = 0; i &lt; entries; i++) {
+     dynamicArray[i] = [[SomeClass alloc] init];
+}
+ 
+// When you're done, set each entry to nil to tell ARC to release the object.
+for (int i = 0; i &lt; entries; i++) {
+     dynamicArray[i] = nil;
+}
+free(dynamicArray);
+</code></pre>
+<p>有一些注意点：</p>
+<ol>
+<li>SomeClass ** 这种二级指针，必须用 __strong 修饰一下，因为在 ARC 中，二级指针默认是 __autoreleasing 的。也就是 <code>SomeClass **</code> 等同于 <code>__autoreleasing SomeClass **</code>。</li>
+<li>申请的内存必须是 zero-filled。</li>
+<li>在 free 数组之前，必须把数组里的对象全部置为nil。</li>
+<li>避免使用memcpy和realloc</li>
+</ol>
+<ul>
+<li>ARC 比 MRC 更慢吗？</li>
+</ul>
+<p>一般来讲，ARC 不会比 MRC 更慢。编译器会自动添加很多内存管理代码，同时也会想办法去优化性能。不会因为增加了很多内存管理代码而更慢。</p>
+<ul>
+<li>ARC 支持 ObjC++ 吗？</li>
+</ul>
+<p>支持。</p>
+<ul>
+<li>在 ARC 中，哪些类不支持 weak ？</li>
+</ul>
+<p>以下这些类不支持 weak。</p>
+<pre><code class="language-plain_text">NSATSTypesetter, NSColorSpace, NSFont, NSMenuView, NSParagraphStyle, NSSimpleHorizontalTypesetter, and NSTextView.
+</code></pre>
+<p>另外，也不能创建下面这些对象的 weak 引用。</p>
+<pre><code class="language-plain_text">NSHashTable, NSMapTable, or NSPointerArray
+</code></pre>
+<ul>
+<li>在 ARC 工程里，可以指定某些文件不使用 ARC 吗？</li>
+</ul>
+<p>可以。</p>
+<p>在 ARC 项目中，所有文件默认都有 <code>-fobjc-arc</code> 这个编译标志，可以在工程文件中找到某个文件，将其编译标志设为 <code>-fno-objc-arc</code> 从而单独为某个或某些文件启用 MRC。</p>
+
+]]>
+        </content>
+    </entry>
+    
+    <entry>
+        <title type="html">
+            <![CDATA[iOS MRC 内存管理的基本原则]]>
+        </title>
+        <link href="https://wxdut.com/16610143438606.html" />
+        <updated>2022-08-21T00:52:23+08:00</updated>
+        <id>https://wxdut.com/16610143438606.html</id>
+        <content type="html">
+            <![CDATA[
+<span id="more"></span><!-- more -->
+<p>搞 iOS 将近一年了，还没怎么写过 iOS 相关的文章，接下来我要开始「干正事」了！</p>
+<p>先从内存管理开始。对于一个软件来说，合理的使用内存可以让应用的性能和体验更加优秀。之前搞 Android 时的内存管理就比较简单，基于 JVM 的强大垃圾回收能力，开发者只需要考虑一些常见的内存泄漏问题即可。</p>
+<p>转到 iOS 后，就需要了解清楚内存管理的一些知识，提高写代码的姿势水平。</p>
+<p>在通读官方文档 <a href="https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/MemoryMgmt/Articles/MemoryMgmt.html">Advanced Memory Management Programming Guide</a> 之后，写一写我的理解和总结。</p>
+<h2><a id="%E5%BC%95%E7%94%A8%E8%AE%A1%E6%95%B0%E4%B8%8Emrc" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>引用计数与 MRC</h2>
+<p>iOS 内存管理的核心是管理「引用计数 (Reference Counting)」。MRC 的全称是 Mannul Reference Counting。所以，iOS 内存管理，就是手动管理对象的引用计数。</p>
+<p><img src="media/15861598894436/15861627876976.jpg" alt="" /></p>
+<p>每一个对象都会被若干个对象持有，其他象持有和放弃持有一个对象，实际上是让该对象的引用计数 +1 或者 -1。当一个对象的引用计数减为 0 时，就会被立刻释放。</p>
+<p><strong>对一个对象发送 retain 消息，可以让对象的引用计数 +1，对一个对象发送 release 消息，可以让对象的引用计数 -1。当对象的引用计数为 0 时就会被立刻释放。</strong></p>
+<p>规则是相当的简单！</p>
+<p>但是出来混迟早要还的，规则简单，就意味着在使用时需要各种约定来保证不出问题。</p>
+<p>比如最容易想到的一个问题：引用计数的归属问题。既然我可以通过 release 达到引用计数 -1 的目的，是不是就可以随意 release 呢？肯定不是，这样的话可能你正在使用的一个对象，被其他对象调用了 release 然后被释放，这肯定是不行的。</p>
+<h2><a id="%E5%9F%BA%E4%BA%8E%E5%BC%95%E7%94%A8%E8%AE%A1%E6%95%B0%E7%9A%84%E7%AE%80%E5%8D%95%E8%A7%84%E5%88%99%E4%B8%8B%E7%9A%84%E5%BC%95%E7%94%A8%E8%AE%A1%E6%95%B0%E5%BD%92%E5%B1%9E%E9%97%AE%E9%A2%98" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>基于引用计数的简单规则下的引用计数归属问题</h2>
+<p>为了保证对象能正确的被 retain 和 release，需要制定一系列的规则来约束开发者，从而达到正确管理引用计数的目的。</p>
+<h4><a id="%E8%B0%83%E7%94%A8%E6%96%B9%E6%B3%95%E5%90%8D%E4%BB%A5%E2%80%9Calloc%E2%80%9D%E2%80%9C-new%E2%80%9D%E2%80%9C-copy%E2%80%9D-or%E2%80%9C-mutablecopy%E2%80%9D%E5%BC%80%E5%A4%B4%E7%9A%84%E6%96%B9%E6%B3%95%E5%88%9B%E5%BB%BA%E7%9A%84%E5%AF%B9%E8%B1%A1%EF%BC%8C%E6%96%B9%E6%B3%95%E8%B0%83%E7%94%A8%E8%80%85%E8%B4%9F%E8%B4%A3%E5%90%8E%E7%BB%AD%E8%B0%83%E7%94%A8-release%E5%B0%86%E5%BC%95%E7%94%A8%E8%AE%A1%E6%95%B0-1" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>调用方法名以 “alloc”, “new”, “copy”, or “mutableCopy” 开头的方法创建的对象，方法调用者负责后续调用 release 将引用计数 -1</h4>
+<p>这规则，真 Apple，简单粗暴。</p>
+<pre><code class="language-plain_text">{
+    Person *aPerson = [[Person alloc] init];
+    // ...
+    NSString *name = aPerson.fullName;
+    // ...
+    [aPerson release];
+}
+</code></pre>
+<p>如上面的例子所示，aPerson 这个对象通过 alloc 方法获得，aPerson 的引用计数为 1，并且负责后续 release。</p>
+<p>name 通过函数 fullName 获得，不是以上面提到的关键字开头的，所以不需要负责后续 release。</p>
+<h5><a id="%E9%80%9A%E8%BF%87retain%E4%BD%BF%E5%AF%B9%E8%B1%A1%E7%9A%84%E5%BC%95%E7%94%A8%E8%AE%A1%E6%95%B0-1%EF%BC%8C%E5%B9%B6%E8%B4%9F%E8%B4%A3%E5%90%8E%E7%BB%AD%E5%8F%91%E9%80%81-release%E6%B6%88%E6%81%AF" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>通过 retain 使对象的引用计数 +1，并负责后续发送 release 消息</h5>
+<pre><code class="language-plain_text">{
+    Person *aPerson = [Person person];
+    [aPerson retain];
+    // ...
+    [aPerson release];
+}
+</code></pre>
+<h4><a id="%E5%BD%92%E5%B1%9E%E9%97%AE%E9%A2%98%E7%9A%84%E6%80%BB%E5%8E%9F%E5%88%99" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>归属问题的总原则</h4>
+<p>总结为一句话就是「谁让引用计数增加 n，谁就负责减少 n」。</p>
+<h2><a id="%E4%B8%80%E4%BA%9B%E9%9C%80%E8%A6%81%E7%89%B9%E6%AE%8A%E5%A4%84%E7%90%86%E7%9A%84%E6%83%85%E5%86%B5" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>一些需要特殊处理的情况</h2>
+<h4><a id="%E4%BD%BF%E7%94%A8autorelease%E5%8F%91%E9%80%81%E5%BB%B6%E8%BF%9F%E7%9A%84-release%E6%93%8D%E4%BD%9C" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>使用 autorelease 发送延迟的 release 操作</h4>
+<p>上面提到的 release 操作会将对象的引用计数立刻 -1，这样在很多时候，会引起对象立即被释放。</p>
+<pre><code class="language-plain_text">- (NSString *)fullName {
+    NSString *string = [[[NSString alloc] initWithFormat:@&quot;%@ %@&quot;,
+                                          self.firstName, self.lastName] autorelease];
+    return string;
+}
+</code></pre>
+<p>上面这个例子中，调用者通过调用 fullName 来获得一个字符串对象，但是根据上面提到的原则，调用者不负责后续调用 release，由 fullName 函数内进行 release，但是 release 之后对象 string 会被立刻释放，调用者就拿不到这个对象了。</p>
+<p>要解决这个问题，就要使用 autorelease，顾名思义，自动释放，实际上是和自动释放池配合使用。</p>
+<p>在自动释放池内发送了 autorelease 消息的对象，都会在自动释放池结束的时候被发送一次 release 消息，从而达到延迟释放的目的。</p>
+<pre><code class="language-plain_text">@autoreleasepool {
+    // Code that creates autoreleased objects.
+    NSString *string = [[[NSString alloc] initWithFormat:@&quot;%@ %@&quot;,
+                                          self.firstName, self.lastName] autorelease];
+}
+</code></pre>
+<p>关于自动释放池，AppKit 和 UIKit 框架为每一个 Runloop 自动包裹了一个自动释放池。因此，通常不必自己创建一个自动释放池。但是，在下面三种情况下，可能会使用自己的自动释放池：</p>
+<ul>
+<li>如果您正在编写的程序不基于UI框架，例如命令行工具。</li>
+<li>如果您编写一个循环来创建许多临时对象。您可以在循环中使用 autorelease 池块在下一次迭代之前处理这些对象。在循环中使用自动释放池块有助于减少应用程序的最大内存占用。</li>
+<li>如果生成一个子线程，一旦线程开始执行，您必须创建自己的自动释放池块;否则，您的应用程序将泄漏对象。</li>
+</ul>
+<h4><a id="%E4%BD%A0%E4%B8%8D%E6%8C%81%E6%9C%89%E9%80%9A%E8%BF%87%E5%BC%95%E7%94%A8%E8%BF%94%E5%9B%9E%E7%9A%84%E5%AF%B9%E8%B1%A1" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>你不持有通过引用返回的对象</h4>
+<p>在 Cocoa 的一些方法中，指定通过引用返回一个对象（参数是 ClassName ** 或者 id *）。常见的模式是使用 NSError 对象，该对象包含发生错误时有关错误的信息。</p>
+<p>当你执行这些方法时，你并没有拥有通过引用返回的对象，所以也不需要调用 release 释放它。用下面这个例子说明一下：</p>
+<pre><code class="language-plain_text">NSString *fileName = &lt;#Get a file name#&gt;;
+NSError *error;
+NSString *string = [[NSString alloc] initWithContentsOfFile:fileName
+                        encoding:NSUTF8StringEncoding error:&amp;error];
+if (string == nil) {
+    // Deal with error...
+}
+// ...
+[string release];
+</code></pre>
+<p>通过二级指针来获取一个对象，在 Cocoa 中很多地方有这种用法，最经典的就是上面例子中的 initWithContentsOfFile，通过二级指针很方便的取回一个对象。但是这种获得对象的方式并不符合上面提到的引用计数相关的原则，所以这里其实是增加了一种规则。</p>
+<h2><a id="%E6%80%BB%E7%BB%93" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>总结</h2>
+<p>MRC 的规则相当简单：</p>
+<p><strong>对一个对象发送 retain 消息，可以让对象的引用计数 +1，对一个对象发送 release 消息，可以让对象的引用计数 -1。当对象的引用计数为 0 时就会被立刻释放。</strong></p>
+<p>简单的规则之上，需要约定很多的规则，来满足和完善复杂的开发场景。所幸现在的 iOS 开发早就切到 ARC（自动引用计数）了。在 ARC 的支持下，我们可以像写 Java 代码那样，不需要去了解和管理引用计数，因为系统已经帮我们做了。</p>
+<p>但是，ARC 只是在编译器帮助开发者插入了合适的引用计数管理代码而已，了解清楚引用计数的细节，有助于我们更深层次的理解内存管理，提高个人技术深度与能力。</p>
+<p>我这边有翻译了几篇官方文档，有需要的可以看一下，官方文档的质量还是挺高的，对一些事情说的比较直接透彻，只是翻译过来有些句子读着怪怪的，我加了一部分解释。有需求的可以点击<strong>阅读原文</strong>查看。</p>
+
+]]>
+        </content>
+    </entry>
+    
+    <entry>
+        <title type="html">
+            <![CDATA[iOS MRC 内存管理的实用技巧]]>
+        </title>
+        <link href="https://wxdut.com/16610143158033.html" />
+        <updated>2022-08-21T00:51:55+08:00</updated>
+        <id>https://wxdut.com/16610143158033.html</id>
+        <content type="html">
+            <![CDATA[
+<span id="more"></span><!-- more -->
+<p>在上一篇文章中提到了 <a href="https://mp.weixin.qq.com/s/oIVg30SQ6adqNng7d9nDaw">iOS MRC 内存管理的基本原则</a>。</p>
+<p>基于引用计数的内存管理策略相当简单，所以对应的需要开发者注意的点就会很多。让众多开发者都能掌握内存管理知识并合理的应用在日常开发中几乎是件不可能的事情。</p>
+<p>所以，苹果只能在官方文档中尽量给到一些合理正确的规范与技巧，以便于降低开发者处理内存管理的难度和门槛。官方文档可参考 <a href="https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/MemoryMgmt/Articles/mmPractical.html#//apple_ref/doc/uid/TP40004447-SW1">Practical Memory Management</a>，我翻译了一份，可以参考 <a href="https://wxdut.com/15854588683836.html">实用的内存管理</a>。</p>
+<p>官方文档总是讲的很精准、权威，很多时候看官方文档比去 CSDN 上阅读被复制黏贴了 N 遍的文章要高效的多。</p>
+<p>基于官方文档，整理和总结如下。</p>
+<h2><a id="%E4%BD%BF%E7%94%A8%E8%AE%BF%E9%97%AE%E5%99%A8%E8%AE%A9%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%9B%B4%E5%8A%A0%E5%AE%B9%E6%98%93" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>使用访问器让内存管理更加容易</h2>
+<p>所谓访问器，其实就是普通的 getter 和 setter。官方推荐将内存管理也就是引用计数管理的代码，放到访问器中，然后在业务逻辑中使用访问器。</p>
+<p>官方提到这样会让内存管理编的更简单，降低出错的几率。这个是必然的。我觉得还有两点很重要：</p>
+<ol>
+<li>精简和统一内存管理代码，便于调试和维护。</li>
+<li>将内存管理代码和业务代码分离，从设计上更清晰整洁。</li>
+</ol>
+<p>假设有个变量 count。</p>
+<pre><code class="language-plain_text">@interface Counter : NSObject
+@property (nonatomic, retain) NSNumber *count;
+@end;
+</code></pre>
+<p>在 getter 中，只需返回合成的实例变量，不需要 retain 或 release。</p>
+<pre><code class="language-plain_text">- (NSNumber *)count {
+    return _count;
+}
+</code></pre>
+<p>在 setter 方法中，如果其他所有人都遵循相同的规则，那么其他人很可能随时让 newCount 的引用计数减一，从而导致 newCount 被释放，所以你必须先通过 retain 使其引用计数加一。然后，你必须要把 _count 的引用计数减一。</p>
+<p>在 OC 中，对一个 nil 对象发消息，是被允许的，所以即使 _count 没有被设置过，对其调用 release 也没事。</p>
+<p>这里官方提到了一个很好的注意点：<strong>必须先把 newCount 的引用计数加一，然后再把 _count 的引用计数减一，否则如果 newCount 和 _count 是同一个对象，先 release 可能会让对象立刻被释放</strong>。</p>
+<pre><code class="language-plain_text">- (void)setCount:(NSNumber *)newCount {
+    [newCount retain];
+    [_count release];
+    // Make the new assignment.
+    _count = newCount;
+}
+</code></pre>
+<p>定义好访问器之后，推荐在代码中使用访问器设置变量。</p>
+<p>假设想实现一个重置计数器的方法。你有几个选择，不使用访问器的时候可以这么写</p>
+<pre><code class="language-plain_text">- (void)reset {
+    NSNumber *zero = [[NSNumber alloc] initWithInteger:0];
+    [_count release];
+    _count = zero;
+}
+</code></pre>
+<p>但是，这种绕过访问器直接赋值的操作，就是不给 Apple 面子啊。</p>
+<p>面子是小事，这么写很难维护，而且容易出错，因为你必须要想着什么时候 retain，什么时候 release。</p>
+<p>还要注意，这种方式更改变量是不兼容 KVO 的。</p>
+<p>使用访问器的话，就比较简洁了：</p>
+<pre><code class="language-plain_text">- (void)reset {
+    NSNumber *zero = [[NSNumber alloc] initWithInteger:0];
+    [self setCount:zero];
+    [zero release];
+}
+</code></pre>
+<p>或者你可以使用 autorelease，两行代码就可以搞定：</p>
+<pre><code class="language-plain_text">- (void)reset {
+    NSNumber *zero = [NSNumber numberWithInteger:0];
+    [self setCount:zero];
+}
+</code></pre>
+<h2><a id="%E4%B8%8D%E8%A6%81%E5%9C%A8init%E5%92%8C-dealloc%E6%96%B9%E6%B3%95%E4%B8%AD%E4%BD%BF%E7%94%A8%E8%AE%BF%E9%97%AE%E5%99%A8" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>不要在 init 和 dealloc 方法中使用访问器</h2>
+<p>上面推荐使用访问器精简和聚合内存管理的逻辑，这里提了个例外的case。在 init 和 dealloc 方法中不要使用访问器。</p>
+<p>为了在 init 中初始化一个变量，你需要这么实现：</p>
+<pre><code class="language-plain_text">- init {
+    self = [super init];
+    if (self) {
+        _count = [[NSNumber alloc] initWithInteger:0];
+    }
+    return self;
+}
+</code></pre>
+<p>如果想把变量初始化成非零值，可以这么实现：</p>
+<pre><code class="language-plain_text">- initWithCount:(NSNumber *)startingCount {
+    self = [super init];
+    if (self) {
+        _count = [startingCount copy];
+    }
+    return self;
+}
+</code></pre>
+<p>由于 Counter 类有一个对象实例变量，还必须实现 dealloc 方法。把所有实例变量的引用计数减一，并最后调用 super 方法：</p>
+<pre><code class="language-plain_text">- (void)dealloc {
+    [_count release];
+    [super dealloc];
+}
+</code></pre>
+<p>至于为何不能用访问器，官方文档里没说，stackoverflow 上有个答案提到了几点原因：<br />
+<a href="https://stackoverflow.com/questions/3424382/why-shoudnt-i-use-accessor-methods-in-init-methods">why-shoudnt-i-use-accessor-methods-in-init-methods</a><br />
+<a href="https://stackoverflow.com/questions/192721/why-shouldnt-i-use-objective-c-2-0-accessors-in-init-dealloc">Why shouldn't I use Objective C 2.0 accessors in init/dealloc?</a></p>
+<p>比较认可的解释是：在 init 和 dealloc 中使用访问器可能会引起潜在的问题。</p>
+<p>init 中是负责基础的初始化逻辑，逻辑要尽量轻，不引入不必要的逻辑。如果调用访问器的话，很可能在访问器里做了懒加载。如果直接调用访问器的话，就会让懒加载失效。甚至是在访问器里做了比较重的逻辑，导致 init 耗时增大。</p>
+<pre><code class="language-plain_text">- (NSMutableDictionary *) myMutableDict {
+    if (!myMutableDict) {
+        myMutableDict = [[NSMutableDictionary alloc] init];
+    }
+    return myMutableDict;
+}
+</code></pre>
+<p>dealloc 是负责释放资源清理现场的，如果调用访问器，就可能执行了很多不必要甚至引起 bug 的逻辑：</p>
+<pre><code class="language-plain_text">-(void) setFoo:(Foo*)foo
+{
+   _foo = foo;
+  [_observer onPropertyChange:self object:foo];
+}
+
+-(void) dealloc
+{
+   ...
+   self.foo = nil;
+}
+</code></pre>
+<h2><a id="%E4%BD%BF%E7%94%A8%E5%BC%B1%E5%BC%95%E7%94%A8%E6%9D%A5%E9%81%BF%E5%85%8D%E5%BE%AA%E7%8E%AF%E5%BC%95%E7%94%A8" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>使用弱引用来避免循环引用</h2>
+<p>对一个对象 retain，会使该对象的引用计数加一。在引用计数变为零之前，无法释放该对象。因此，如果两个对象可能有循环引用(即它们彼此有一个强引用)，那么就会出现一个称为retain cycle的问题（可能是两个对象相互引用，也可能是多个对象之间相互引用，最终形成一个环）。</p>
+<p>图 1 中显示的对象关系演示了一个潜在的 retain cycle。Document 对象对文档中的每个页面都有一个 Page 对象。每个 Page 对象都有一个跟踪其所在文档的属性。如果 Document 对象有一个指向 Page 对象的强引用，而 Page 对象有一个指向 Document 对象的强引用，那么两个对象都不能被释放。在释放 Page 对象之前，Document 的引用计数不能变为零，而在释放 Document 对象之前，Page 对象不会被释放。</p>
+<p><img src="media/15862607162734/15866736647137.jpg" alt="" /></p>
+<p>使用弱引用可以解决 retain cycle 的问题。弱引用是一种非拥有关系，其中源对象不保留它有引用的对象。</p>
+<p>然而，要保持对象图完整，必须在某个地方有强引用(如果只有弱引用，那么 Page 和 Document 可能没有任何所有者，因此需要释放)。因此，Cocoa 建立了一个约定，即“父”对象应该保持对其“子”的强引用，而子对象应该对其父对象有弱引用。</p>
+<p>因此，在图 1 中，Document 对象有一个对其 Page 对象的强引用(retain)，而 Page 对象有一个对 Document 对象的弱引用(不retain)。</p>
+<h2><a id="%E9%81%BF%E5%85%8D%E6%AD%A3%E5%9C%A8%E4%BD%BF%E7%94%A8%E7%9A%84%E5%AF%B9%E8%B1%A1%E8%A2%AB%E9%87%8A%E6%94%BE" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>避免正在使用的对象被释放</h2>
+<p>Cocoa 的引用策略指定接通过函数传入的对象通常在调用方法的范围内保持有效。也可以返回通过函数参数传递的对象，而不必担心它被释放。对于应用程序来说，对象的 getter 方法是否返回缓存的实例变量或计算值并不重要。重要的是，对象在您需要它的时候保持有效。</p>
+<p>这个规则偶尔也有例外，主要分为两类。</p>
+<ul>
+<li>从基本集合类之一中删除对象时</li>
+</ul>
+<pre><code class="language-plain_text">heisenObject = [array objectAtIndex:n];
+[array removeObjectAtIndex:n];
+// heisenObject could now be invalid.
+</code></pre>
+<p>当一个对象从一个基本集合类中移除时，它将被发送一个release(而不是autorelease)消息。如果集合是被删除对象的唯一所有者，则立即释放被删除的对象(本例中的heisenObject)。</p>
+<ul>
+<li>当“父对象”被释放时</li>
+</ul>
+<pre><code class="language-plain_text">id parent = &lt;#create a parent object#&gt;;
+// ...
+heisenObject = [parent child] ;
+[parent release]; // Or, for example: self.parent = nil;
+// heisenObject could now be invalid.
+</code></pre>
+<p>在某些情况下，您从另一个对象获取一个对象，然后直接或间接地释放父对象。如果释放父对象导致它被释放，而父对象是子对象的唯一所有者，那么子对象(本例中的heisenObject)将同时被释放(假设它是在父对象的dealloc方法中被发送的是一个release而不是一个autorelease消息)。</p>
+<p>为了防止这些情况，您在接收heisenObject时引用它，并在使用完它时释放它。例如:</p>
+<pre><code class="language-plain_text">heisenObject = [[array objectAtIndex:n] retain];
+[array removeObjectAtIndex:n];
+// Use heisenObject...
+[heisenObject release];
+</code></pre>
+<h2><a id="%E9%9B%86%E5%90%88%E6%8B%A5%E6%9C%89%E5%AE%83%E4%BB%AC%E6%89%80%E5%8C%85%E5%90%AB%E7%9A%84%E5%AF%B9%E8%B1%A1" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>集合拥有它们所包含的对象</h2>
+<p>当您将对象添加到集合(例如数组、字典或集合)时，集合拥有该对象的所有权。当对象从集合中移除或集合本身被释放时，集合将放弃所有权。因此，例如，如果你想创建一个数字数组，你可以做以下任何一种:</p>
+<pre><code class="language-plain_text">NSMutableArray *array = &lt;#Get a mutable array#&gt;;
+NSUInteger i;
+// ...
+for (i = 0; i &lt; 10; i++) {
+    NSNumber *convenienceNumber = [NSNumber numberWithInteger:i];
+    [array addObject:convenienceNumber];
+}
+</code></pre>
+<p>在上面这个例子中，你没有调用 alloc，所以也就不用调用 release。addObject 时，array 会 retain convenienceNumber。</p>
+<pre><code class="language-plain_text">NSMutableArray *array = &lt;#Get a mutable array#&gt;;
+NSUInteger i;
+// ...
+for (i = 0; i &lt; 10; i++) {
+    NSNumber *allocedNumber = [[NSNumber alloc] initWithInteger:i];
+    [array addObject:allocedNumber];
+    [allocedNumber release];
+}
+</code></pre>
+<p>在这种情况下，您需要在 for 循环的范围内发送给 allocedNumber 一个 release 消息来抵消 alloc 增加的引用计数。由于数组在 addObject: 时 retain 了数字，所以在数组中它不会被释放。</p>
+<p>要理解这一点，可以站在实集合类的人的角度。你要确保集合里的对象都不会被释放，所以当它们被传递进来时，你要向它们发送一条 retain 消息。如果它们被删除，您必须发送一个 release 消息，并且在自己的 dealloc 方法期间，任何未被 remove 的对象都应该被发送一个 release 消息。</p>
+<h2><a id="%E6%80%BB%E7%BB%93" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>总结</h2>
+<p>本文基于 MRC 内存管理的基本原则之上，列举了一些常见的内存管理技巧，以便于让开发者更好的处理内存问题。</p>
+<p>如此基础和繁琐的内存管理逻辑不应该交给开发者去做，否则会给开发者增加很大的成本，而且不可避免的出现各种内存管理问题。</p>
+<p>所幸苹果后面引入了 ARC，开发者终于不用再那么蛋疼的 retain release 了。但是 ARC 只是在编译器自动增加了 MRC 的内存管理代码而已，所以理解 MRC，才能更好的理解 ARC 的运行规则，提高对 iOS 内存管理的理解深度。</p>
+
+]]>
+        </content>
+    </entry>
+    
+    <entry>
+        <title type="html">
+            <![CDATA[攻破小区门禁系统]]>
+        </title>
+        <link href="https://wxdut.com/16610142939640.html" />
+        <updated>2022-08-21T00:51:33+08:00</updated>
+        <id>https://wxdut.com/16610142939640.html</id>
+        <content type="html">
+            <![CDATA[
+<p>大家好，久违了，好久没写公众号文章了。今天有些时间，翻了翻文档库，发现之前一个写了一半的文章。今天写一写和大家分享下~</p>
+<span id="more"></span><!-- more -->
+<hr />
+<p>很多小区的大门和楼栋门都可以通过 NFC 实体卡片或者手机 APP 的方式打开，我所在的小区也不例外。</p>
+<p>开门是一个每天都会发生好多次的操作，我们会频繁进出小区，外卖快递等等经常打电话让开楼栋门。所以寻求一个最便捷的方式很有必要。</p>
+<p>首先我从不用 NFC 实体卡，这玩意和带个钥匙没啥区别，到门口了我还得翻出实体卡，还容易丢。非常不方便。</p>
+<p>通过手机 APP 开锁倒是挺方便，你总不会不带手机吧。</p>
+<p>但是通过 APP 开锁也有个很大的痛点 - 广告。没错，一般这种开锁 APP 都是些小公司开发的，体验贼差，广告贼多，流程贼长。</p>
+<p>我这里录个视频，大家可以感受下。。。</p>
+<p><a href="media/16519243679102/mp_lxj.mp4"></a><br />
+<video id="video" controls="" preload="metadata" height=100% width=100%><br />
+<source id="mp4" src="media/16519243679102/mp_lxj.mp4" type="video/mp4"><br />
+</video></p>
+<p>这是一个 12 秒的视频，也就意味着每次开门都需要十几秒的时间，这简直太慢了。</p>
+<p>接下来，我要开始破解了！</p>
+<p>首先从技术的角度去看，我们打开 APP 开锁，其实就是发了一个网络请求，可能还会涉及登录等操作。</p>
+<p>那么我们如果在手机上开锁，然后对开锁的请求进行抓包，将具体参数记录下来，下次开锁时只需要做一次重放操作就可以了。</p>
+<p>原理很简单，说干就干。</p>
+<p>我平时抓包用 Charles，这个工具简单易用，可以很方便的抓 HTTP 和 HTTPS 的请求。安装、设置代理、操作、抓包，一气呵成。结果我发现手机开锁后，Charles 上并没有看到任何相关的请求记录。</p>
+<p><img src="media/16519243679102/16519265797675.jpg" alt="" /></p>
+<p>奇了个怪，没有任何网络请求，难道是通过 NFC 或蓝牙实现的？也不对呀，因为可以远程开锁，所以肯定是通过网络开锁的。</p>
+<p>经过了解，这玩意发的网络请求竟然不是 HTTP 协议，而是 SIP 协议。至于 SIP 是啥，就是一种实现 VoIP 的协议，简单理解就是实现语音通话的。因为 Charles 只能抓 HTTP 协议，所以得换个工具。</p>
+<p>Wireshark 是另外一款抓包工具，可以抓所有协议的请求。说干就干。监听手机之后，操作开锁，立刻就看到了相关的请求。</p>
+<p><img src="media/16519243679102/16519274374078.jpg" alt="" /></p>
+<p>上图是开锁的关键请求，我们可以清晰的看到所有需要的信息，然后在手机端重放一下这个 SIP 请求即可。</p>
+<p>基于此，搞了个 iOS APP，后面开锁只需要打开 APP，然后点一下想开的门即可。<br />
+<img src="media/16519243679102/16519276228810.jpg" alt="" /></p>
+<p>嗯，至于这个 APP 的 UI，确实丑。。但是不影响开锁速度，就懒得优化了。。<br />
+<img src="media/16519243679102/16519277141833.jpg" alt="" /></p>
+<p>经过这一波操作，开锁又原来的十几秒缩短为现在的三四秒，每天可以省出一分钟的时间给你的女神多聊几句天。</p>
+<p><img src="media/16519243679102/16519308045854.jpg" alt="" /></p>
+<p>最后，你们小区的开锁方式是啥样的呀？评论区告诉我~</p>
+<p>有能力的可以考虑破解一下，方便自己。但是注意不要分享给很多人用，尊重开发者的劳动成果吧，也避免给自己招来不必要的麻烦。</p>
+
+]]>
+        </content>
+    </entry>
+    
+    <entry>
+        <title type="html">
+            <![CDATA[WebRTC iOS 尝鲜]]>
+        </title>
+        <link href="https://wxdut.com/16610132450450.html" />
+        <updated>2022-08-21T00:34:05+08:00</updated>
+        <id>https://wxdut.com/16610132450450.html</id>
+        <content type="html">
+            <![CDATA[
+<p>最近几天将 WebRTC 编译出 iOS 平台的 framework，并将官方 demo (<strong>AppRTCMobile</strong>) 运行在真机上。此外，还在局域网搭建了 WebRTC 服务器，使用官方 demo 实现了音视频通话。</p>
+<p>实际过程比想象的麻烦一些，踩了一些坑，比如官方 demo 竟然无法加断点调试，花了大半天的时间才找到办法。记录和分享一下。</p>
+<span id="more"></span><!-- more -->
+<h2><a id="%E4%BB%80%E4%B9%88%E6%98%AFwebrtc" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>什么是 WebRTC</h2>
+<p>WebRTC 由 Google 开发和维护，RTC 全称为 Real-Time Communications，WebRTC 提供了简单的 API 实现了浏览器和移动设备之间的实时音视频通话。</p>
+<h2><a id="%E7%BC%96%E8%AF%91framework" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>编译 framework</h2>
+<p>WebRTC 提供了细致的文档，可以参照着搞。<a href="https://webrtc.googlesource.com/src/+/main/docs/native-code/ios/index.md">WebRTC iOS development</a></p>
+<p>这里只列一下遇到的坑及解决办法。</p>
+<h3><a id="1%E7%AD%BE%E5%90%8D%E9%97%AE%E9%A2%98" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>1. 签名问题</h3>
+<p>编 framework 不需要签名，所以要加上 ios_enable_code_signing=false 参数。举个栗子 👇🏻</p>
+<pre><code class="language-plain_text">gn gen ${BUILD_DIR} --args='target_os=&quot;ios&quot; target_cpu=&quot;arm64&quot; ios_enable_code_signing=false'
+</code></pre>
+<h2><a id="%E7%BC%96%E8%AF%91demo-app" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>编译 demo app</h2>
+<p>同样的，先参考 <a href="https://webrtc.googlesource.com/src/+/main/docs/native-code/ios/index.md">WebRTC iOS development</a> 搞最直接。这里列一下遇到的问题及 tips。</p>
+<h3><a id="1%E7%94%9F%E6%88%90-xcode-project%E6%97%B6%E7%9A%84%E5%8F%82%E6%95%B0" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>1. 生成 xcode project 时的参数</h3>
+<p>官方文档里生成 xcode 工程时用到的参数比较少，实际上还可以指定更多的参数，建议用下面这个命令。👇🏻</p>
+<p>比如 xcode-build-system 要设置为 new，否则用高版本 xcode 会遇到编译问题。</p>
+<pre><code class="language-plain_text">gn gen out/ios_demo --args='target_os=&quot;ios&quot; target_cpu=&quot;arm64&quot;' --ide=xcode --xcode-project=&quot;WebRTCDemo&quot; --xcode-build-system=&quot;new&quot; --xcode-configs=&quot;Debug;Release&quot;
+</code></pre>
+<p>更多的 gn 参数可以参考<a href="https://gn.googlesource.com/gn/+/master/docs/reference.md">这里</a>。</p>
+<h3><a id="2%E7%AD%BE%E5%90%8D%E9%97%AE%E9%A2%98" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>2. 签名问题</h3>
+<p>要编译到真机，就绕不开签名问题。生成 xcode project 时会执行下面这个命令寻找 Apple Development 的证书：</p>
+<pre><code class="language-plain_text">xcrun security find-identity -v -p codesigning
+</code></pre>
+<p>但是有时候本地会有多个 Apple Development 证书，会报错提示找不到唯一的证书。</p>
+<p>可以修改 build/config/ios/ios_sdk.gni 里的 ios_code_signing_identity_description，让上面的命令能找到唯一的证书即可。</p>
+<h3><a id="3-demo%E6%97%A0%E6%B3%95%E5%8A%A0%E6%96%AD%E7%82%B9%E8%BF%9B%E8%A1%8C%E5%8D%95%E6%AD%A5%E8%B0%83%E8%AF%95" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>3. demo 无法加断点进行单步调试</h3>
+<p>虽然能生成 xcode 工程，但是本质上还是用 gn 编译的。所以如果想用 xcode 源码调试，其实就相当于用 xcode 调试一个从其他地方编译的 app。直接运行加断点，会发现无法走到对应的断点。</p>
+<p><img src="media/16607259169365/16607283781124.jpg" alt="" /></p>
+<p>无法加断点，大概率是因为 DWARF 有问题，用 dwarfdump 查看一下 demo 的符号信息：</p>
+<p><img src="media/16607259169365/WeChatWorkScreenshot_8f204f9d-b512-40cf-aecc-6a78d2b01786.png" alt="WeChatWorkScreenshot_8f204f9d-b512-40cf-aecc-6a78d2b01786" /></p>
+<p>可以看到行号、函数名、文件名都有。不过其中 <code>DW_AT_decl_line</code> 是相对路径，所以猜测这里可能是路径问题，导致 xcode 找不到源码，所以无法调试。</p>
+<p>那么有没办法将 <code>DW_AT_decl_line</code> 改为绝对路径试试呢？其实是可以的，可以使用 lldb 设置一下 source map。</p>
+<pre><code class="language-plain_text">(lldb) settings set target.source-map &quot;./../../&quot; &quot;/Users/wangxiao/WeChat/WebRTC/webrtc_ios/src&quot;
+</code></pre>
+<p>上面的命令里有两个路径，其中 <code>&quot;./../../&quot;</code> 就是符号信息里的 <code>DW_AT_decl_line</code> 的前缀，<code>&quot;/Users/wangxiao/WeChat/WebRTC/webrtc_ios/src/&quot;</code> 是本地源码路径。<br />
+相当于把<br />
+<code>./../../examples/objc/AppRTCMobile/ios/ARDSettingsViewController.m</code><br />
+替换为<br />
+<code>/Users/wangxiao/WeChat/WebRTC/webrtc_ios/src/examples/objc/AppRTCMobile/ios/ARDSettingsViewController.m</code><br />
+这样就可以对应的上了。</p>
+<p>另外，可以给 xcode 添加符号断点，比如在执行 <code>-[ARDAppDelegate application:didFinishLaunchingWithOptions:]</code> 时自动设置 source-map，就省的每次手动设置了。</p>
+<p><img src="media/16610132450450/16643336516680.jpg" alt="" /></p>
+<p>在实际操作过程中，我发现每次运行 app 后，已有的断点会不生效，把断点去掉重新添加就正常，或许是 xcode 的 bug吧，反正遇到无法断点调试的时候，可以尝试把断点干掉重新添加试试，还不行就重启 xcode 和电脑。</p>
+<p>最后，这里提到了 DWARF，想了解更多可以参考这篇文章 <a href="16643337564362.html">iOS 符号之 DWARF 和 dSYM</a></p>
+<h2><a id="%E6%90%AD%E5%BB%BA%E6%9C%8D%E5%8A%A1%E5%99%A8" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>搭建服务器</h2>
+<p>demo 里用的 RTC 服务器是 <a href="https://appr.tc%EF%BC%8C%E4%B8%8D%E8%BF%87%E5%B7%B2%E7%BB%8F%E8%A2%AB">https://appr.tc，不过已经被</a> Google 停掉了，所以现在想体验 demo 需要自己搭建服务器。</p>
+<p>因为只需要满足测试用，所以本机局域网搭建一下就可以了。Google 提供了 docker 的方式，可以很方便的搭建服务器。具体参考 <a href="https://github.com/webrtc/apprtc">AppRTC Demo Code</a>。</p>
+<p><img src="media/16607259169365/16607290369033.jpg" alt="" /></p>
+<p>在 Dockerfile 的最底下有指引，参照着搞就行。<br />
+<img src="media/16607259169365/16607291222159.jpg" alt="" /></p>
+<p>过程中会遇到一些问题，这里列一下：</p>
+<h3><a id="1%E5%B1%80%E5%9F%9F%E7%BD%91%E7%9A%84%E5%85%B6%E4%BB%96%E6%9C%BA%E5%99%A8%E8%AE%BF%E9%97%AE%E8%A2%AB%E6%8B%92%E7%BB%9D" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>1. 局域网的其他机器访问被拒绝</h3>
+<p>按照文档操作之后，访问 <a href="https://localhost/r/820971301?wshpp=localhost:8089&amp;wstls=true">https://localhost/r/820971301?wshpp=localhost:8089&amp;wstls=true</a> 会报错：👇🏻</p>
+<p>Request host is not whitelist enabled for this server. Please use the --host command-line flag to whitelist a specific host (recommended) or use --enable_host_checking to disable host checking. See the command-line flags help text for more information.</p>
+<p>需要修改 dockerfile，将 dev_appserver.py --host 0.0.0.0 替换为 dev_appserver.py --enable_host_checking=false</p>
+<h3><a id="2-socket%E6%80%BB%E6%98%AF%E9%93%BE%E6%8E%A5%E5%A4%B1%E8%B4%A5%EF%BC%8C%E6%8F%90%E7%A4%BA-eof" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>2. socket 总是链接失败，提示 EOF</h3>
+<p>这个是因为 socket 的 tls 证书是本地生成的，无法通过安全校验。如果不是生产环境的话，可以关闭 证书校验。</p>
+<p><img src="media/16607259169365/16607324231155.jpg" alt="" /></p>
+<h3><a id="3-nsurlsession-tls%E8%AF%81%E4%B9%A6%E9%97%AE%E9%A2%98" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>3. NSURLSession tls 证书问题</h3>
+<p>官方 demo 提供了 room server，访问 room server 是通过 NSURLSession，因为我们的证书是临时的，所以也需要关掉 NSURLSession 对证书的校验。</p>
+<p><img src="media/16607259169365/16607325739236.jpg" alt="" /><br />
+<img src="media/16607259169365/16607326040842.jpg" alt="" /></p>
+<h2><a id="%E6%95%88%E6%9E%9C%E5%BD%95%E5%B1%8F" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>效果录屏</h2>
+<p><a href="media/16607259169365/webrtc_demo_video.mp4"></a><br />
+<video id="video" controls="" preload="metadata" height=100%  width=100%><br />
+<source id="mp4" src="media/16607259169365/webrtc_demo_video.mp4" type="video/mp4"><br />
+</video></p>
+
+]]>
+        </content>
+    </entry>
+    
+    <entry>
+        <title type="html">
+            <![CDATA[使用自动释放池块]]>
+        </title>
+        <link href="https://wxdut.com/15860600481478.html" />
+        <updated>2020-04-05T12:14:08+08:00</updated>
+        <id>https://wxdut.com/15860600481478.html</id>
+        <content type="html">
+            <![CDATA[
+<blockquote>
+<p>大家好，本文是文档翻译计划的第 04 篇，原文是：<a href="https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/MemoryMgmt/Articles/mmAutoreleasePools.html#//apple_ref/doc/uid/20000047-CJBFBEDI">Using Autorelease Pool Blocks</a></p>
+</blockquote>
+<span id="more"></span><!-- more -->
+<p>自动释放池块提供了一种机制，您可以通过这种机制放弃对象的所有权，但是避免了立即释放它的可能性(例如，当您从一个方法返回一个对象时)。通常，您不需要创建自己的自动释放池块，但是在某些情况下，您必须这样做，或者这样做是有益的。</p>
+<h2><a id="%E5%85%B3%E4%BA%8E%E8%87%AA%E5%8A%A8%E9%87%8A%E6%94%BE%E6%B1%A0%E5%9D%97" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>关于自动释放池块</h2>
+<p>自动释放池块使用 @autoreleasepool 标记，如下面的示例所示:</p>
+<pre><code class="language-plain_text">@autoreleasepool {
+    // Code that creates autoreleased objects.
+}
+</code></pre>
+<p>在 autorelease 池块的末尾，在块中接收到 autorelease 消息的对象将被发送一个 release 消息——每当对象在块中接收到一个 autorelease 消息时，它都会接收一个 release 消息。</p>
+<p>和像其他的代码块一样，自动释放池块可以嵌套。</p>
+<pre><code class="language-plain_text">@autoreleasepool {
+    // . . .
+    @autoreleasepool {
+        // . . .
+    }
+    . . .
+}
+</code></pre>
+<p>(通常不会看到与上面完全一样的代码。通常，一个源文件中的自动释放池块中的代码会调用另一个源文件中的代码，该源文件包含在另一个自动释放池块中。对于给定的 autorelease 消息，在发送 autorelease 消息的自动发布池块的末尾发送相应的 release 消息。</p>
+<p>Cocoa总是期望代码在一个自动释放池块中执行，否则自动释放的对象不会被释放，你的应用程序会泄漏内存。</p>
+<p>(如果您在 autorelease 池块之外发送一个 autorelease 消息，Cocoa 会打印一个适当的error log。)</p>
+<p>AppKit 和 UIKit 框架处理一个自动释放池块中的每个事件循环迭代(例如一个鼠标向下事件或一个点击)。因此，您通常不必自己创建一个自动释放池块，甚至不必查看用于创建该块的代码。然而，在三种情况下，您可能会使用自己的自动释放池块:</p>
+<ul>
+<li>如果您正在编写的程序不基于UI框架，例如命令行工具。</li>
+<li>如果您编写一个循环来创建许多临时对象。您可以在循环中使用 autorelease 池块在下一次迭代之前处理这些对象。在循环中使用自动释放池块有助于减少应用程序的最大内存占用。</li>
+<li>如果生成一个子线程，一旦线程开始执行，您必须创建自己的自动释放池块;否则，您的应用程序将泄漏对象。</li>
+</ul>
+<h2><a id="%E4%BD%BF%E7%94%A8%E6%9C%AC%E5%9C%B0%E8%87%AA%E5%8A%A8%E9%87%8A%E6%94%BE%E6%B1%A0%E5%9D%97%E6%9D%A5%E5%87%8F%E5%B0%91%E5%B3%B0%E5%80%BC%E5%86%85%E5%AD%98%E5%8D%A0%E7%94%A8" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>使用本地自动释放池块来减少峰值内存占用</h2>
+<p>许多程序都创建了自动释放的临时对象。这些对象会增加程序的内存占用，直到自动释放池块结束。在许多情况下，允许临时对象累积到当前事件循环迭代结束时，不会导致过多的开销;然而，在某些情况下，您可能会创建大量临时对象，这些临时对象会大量增加内存占用，您希望更快地处理它们。在后一种情况下，您可以创建自己的自动释放池块。在块的末尾，临时对象被释放，这通常会导致释放它们，从而减少程序的内存占用。</p>
+<p>下面的示例演示如何在for循环中使用本地自动释放池块。</p>
+<pre><code class="language-plain_text">NSArray *urls = &lt;# An array of file URLs #&gt;;
+for (NSURL *url in urls) {
+ 
+    @autoreleasepool {
+        NSError *error;
+        NSString *fileContents = [NSString stringWithContentsOfURL:url
+                                         encoding:NSUTF8StringEncoding error:&amp;error];
+        /* Process the string, creating and autoreleasing more objects. */
+    }
+}
+</code></pre>
+<p>for 循环一次处理一个文件。在 autorelease 池块内发送自动释放消息的任何对象(例如fileContents)都会在块的末尾被释放。</p>
+<p>在自动释放池块之后，您应该将块中自动释放的任何对象视为“已释放”。不要向该对象发送消息或将其返回给方法的调用者。如果你需要某个临时对象在自动释放池块结束之后依然可用，你可以通过发送一个retain消息到块内的对象，然后在块后发送 autorelease，如下例所示:</p>
+<pre><code class="language-plain_text">– (id)findMatchingObject:(id)anObject {
+ 
+    id match;
+    while (match == nil) {
+        @autoreleasepool {
+ 
+            /* Do a search that creates a lot of temporary objects. */
+            match = [self expensiveSearchForObject:anObject];
+ 
+            if (match != nil) {
+                [match retain]; /* Keep match around. */
+            }
+        }
+    }
+ 
+    return [match autorelease];   /* Let match go and return it. */
+}
+</code></pre>
+<p>上面这种方式延长了临时对象 match 的生命周期，所以可以在自动释放池以外继续存活，并且可以返回给 findMatchingObject 的调用者。</p>
+
+]]>
+        </content>
+    </entry>
+    
+</feed>

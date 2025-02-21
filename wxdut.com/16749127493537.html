@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" sizes="32x32" href="asset/img/favicon.png" />
+    <link rel="shortcut icon" href="asset/img/favicon.png" type="image/png" />
+    <link href="atom.xml" rel="alternate" title="专业点" type="application/atom+xml">
+    <title>
+         LLDB - 源码调试工具 - 专业点 
+    </title>
+    <script src="asset/js/jquery-3.3.1.min.js"></script>
+    <script src="asset/js/popper.min.js"></script>
+    <script src="asset/js/darkreader.min.js"></script>
+    <link href="asset/css/mweb-github.css" rel="stylesheet" type="text/css">
+    <link href="asset/css/style.css" rel="stylesheet" type="text/css">
+    <script src="asset/highlightjs/highlight.pack.js"></script>
+    <link href="asset/highlightjs/styles/github.css" media="screen, projection" rel="stylesheet" type="text/css">
+    <link href="asset/bootstrap-4.2.1-dist/css/bootstrap.min.css" rel="stylesheet" type="text/css">
+    <script src="asset/bootstrap-4.2.1-dist/js/bootstrap.min.js"></script>
+    <link href="asset/bootstrap-select-1.13.2/css/bootstrap-select.min.css" rel="stylesheet" type="text/css">
+    <script src="asset/bootstrap-select-1.13.2/js/bootstrap-select.min.js"></script>
+
+    <script>
+        hljs.initHighlightingOnLoad();
+        DarkReader.enable();
+    </script>
+    <!--[if lt IE 9]>
+      <script src="asset/js/html5shiv.min.js"></script>
+    <![endif]-->
+</head>
+
+<body>
+    <div class="blog-masthead">
+        <div class="container">
+            <nav class="blog-nav">
+                
+                    <a class="blog-nav-item" id="/" href="/">博客</a> 
+                
+                    <a class="blog-nav-item" id="archives.html" href="archives.html">归档</a> 
+                
+                    <a class="blog-nav-item" id="tools.html" href="tools.html">工具</a> 
+                
+                    <a class="blog-nav-item" id="about.html" href="about.html">关于</a> 
+                
+            </nav>
+        </div>
+    </div>
+    
+
+    <script type="text/javascript" src="asset/js/header.html.js"></script> <script type="text/javascript">
+$(function() {
+    $('16749127493537.html').addClass('active');
+});
+</script>
+<div class="container markdown-body" id="content-wrap">
+    <div class="row">
+        <div class="col-sm-9 blog-main">
+            <div class="blog-post">
+                <h2 class="blog-post-title">LLDB - 源码调试工具</h2>
+                <p class="blog-post-meta">2023/1/28 &nbsp;posted in  
+                    <a class='category' href='iOS.html'>iOS</a>&nbsp;   
+                </p>
+                <div class="content-responsive" id="post-content">
+                    <p><code>LLDB</code> 是 <code>LLVM</code> 编译套件里的一个调试工具，也是 <code>XCode</code> 的调试器，本文总结下如何使用 <code>XCode + LLDB</code> 进行调试。包含一些基本的使用方法和一些小技巧。</p>
+<span id="more"></span><!-- more -->
+<h2><a id="xcode-lldb%E8%B0%83%E8%AF%95%E7%95%8C%E9%9D%A2" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>XCode LLDB 调试界面</h2>
+<p>通常来讲，会先添加一个符号断点，然后命中断点之后可以查看当前堆栈和变量，可以单步调试等等。</p>
+<p>这里可以查看目前项目填加的所有断点。包含生效的和未生效的。</p>
+<p><img src="media/16749127493537/16749770935662.jpg" alt="" /></p>
+<p>一般来讲，通过 <code>XCode</code> 启动程序之后，会自动打开调试面板。可以通过点击这个按钮中断程序，以便于利用 <code>LLDB</code> 的能力进行调试工作。<br />
+<img src="media/16749127493537/16749775999451.jpg" alt="" /></p>
+<p>命中断点之后，<code>XCode</code> 也会自动打开这个面板，以便于单步调试等。<br />
+<img src="media/16749127493537/16749774591659.jpg" alt="" /></p>
+<p>这个非常简单，就不细说了。</p>
+<h2><a id="lldb%E5%B8%B8%E7%94%A8%E5%91%BD%E4%BB%A4" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>LLDB 常用命令</h2>
+<h3><a id="expression-p-po" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>expression / p / po</h3>
+<p>顾名思义，<code>exception</code> 命令是用来执行一个表达式，并返回结果。</p>
+<p>当然它有一些参数，可以通过 在 <code>lldb</code> 控制台输入 <code>help expression</code> 查看详细说明。</p>
+<p>日常较少直接使用 <code>exception</code>，更多的是使用 <code>p</code> 和 <code>po</code> 命令。</p>
+<ul>
+<li>p：执行语句返回结果，或者打印变量值，如果是指针，会打印地址</li>
+<li>po：执行语句返回结果，或者打印变量值，如果是指针，会调用对象的 <code>description</code> 函数并打印出来</li>
+</ul>
+<p>一般就无脑 <code>po</code> 就行了，有时候明确想查看对象的指针时可以用一下 <code>p</code>。</p>
+<p>在使用 <code>po</code> 打印 <code>OC</code> 对象的时候经常遇到一些函数找不到的错误，可以使用 <code>@import UIKit</code> 的方式手动导入 👇🏻。</p>
+<pre><code class="language-plain_text">(lldb) p self.view.frame
+error: property 'frame' not found on object of type 'UIView *'
+error: 1 errors parsing expression
+(lldb) e @import UIKit
+(lldb) p self.view.frame
+(CGRect) $0 = (origin = (x = 0, y = 0), size = (width = 375, height = 667))
+</code></pre>
+<p>更多命令和用法可以通过 <code>man lldb</code> 和 <code>lldb --help</code> 查看文档，有详细的描述。</p>
+<h3><a id="thread-return" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>thread return</h3>
+<p>在单步调试时，有时候想直接让函数返回，不继续执行下面的逻辑，可以使用这个命令。</p>
+<p><img src="media/16749127493537/16776496061598.jpg" alt="" /></p>
+<p>比如在上图的断点处执行 <code>thread return NO</code>，函数立刻返回，相当于执行了 <code>return NO</code>，当然，你也可以执行 <code>thread return YES</code>。</p>
+<p>其他 <code>thread</code> 指令都不太常用或者用处不大，详情参考 <code>help thread</code>。</p>
+<h3><a id="breakpoint-watchpoint" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>breakpoint &amp; watchpoint</h3>
+<p>关于 <code>breakpoint</code>，平时在 <code>XCode</code> 里点击代码右侧添加的断点就是 <code>breakpoint</code>（符号断点），也就是给某个函数的某一行增加一个端点，也是最常用的。虽然有 <code>lldb</code> 命令，但是 <code>XCode</code> 提供的 <code>UI</code> 操作界面已经很简单易用了，没必要用命令行指令，这里就不提了。</p>
+<p>除此之外，还有一个 <code>watchpoint</code>，是给具体某个地址加一个端点，当该地址里的内容发生变化时会中断程序。</p>
+<h4><a id="watchpoint-set-variable" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>watchpoint set variable</h4>
+<p>一般情况下，要观察变量或者属性，使用 <code>watchpoint set variable</code> 命令即可。比如：</p>
+<pre><code class="language-plain_text">(lldb) watchpoint set variable self-&gt;_string
+Watchpoint created: Watchpoint 1: addr = 0x7fcf3959c418 size = 8 state = enabled type = w
+    watchpoint spec = 'self-&gt;_string'
+    new value: 0x0000000000000000
+</code></pre>
+<p>这里有个细节：👇🏻</p>
+<pre><code class="language-plain_text">watchpoint set variable self-&gt;_string // 可以 self-&gt;_string 是个变量
+watchpoint set variable self.string // 不可以，self.string 是个 getter 方法
+</code></pre>
+<p>另外，每个 <code>watchpoint</code> 都有一个数字 <code>ID</code>，比如上面的例子里的 <code>ID</code> 是 <code>1</code>，后续操作这个 <code>watchpoint</code> 都要指定这个 <code>ID</code>。</p>
+<h4><a id="watchpoint-set-expression" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>watchpoint set expression</h4>
+<p>如果想监听某个地址的内容变化，可以使用 <code>watchpoint set expression address</code>。</p>
+<pre><code class="language-plain_text">(lldb) p &amp;_model
+(Modek **) $3 = 0x00007fe0dbf23280
+(lldb) watchpoint set expression 0x00007fe0dbf23280
+Watchpoint created: Watchpoint 1: addr = 0x7fe0dbf23280 size = 8 state = enabled type = w
+    new value: 0
+</code></pre>
+<h4><a id="watchpoint-list" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>watchpoint list</h4>
+<p>查看当前添加的所有 <code>watchpoint</code>。</p>
+<pre><code class="language-plain_text">(lldb) watchpoint list
+Number of supported hardware watchpoints: 4
+Current watchpoints:
+Watchpoint 1: addr = 0x7fe9f9f28e30 size = 8 state = enabled type = w
+    watchpoint spec = '_string'
+    old value: 0x0000000000000000
+    new value: 0x000000010128e0d0
+</code></pre>
+<h4><a id="watchpoint-enabledisabledelete" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>watchpoint enable/disable/delete</h4>
+<p>将某一个 <code>watchpoint</code> 打开/关闭/删除</p>
+<pre><code class="language-plain_text">(lldb) watchpoint enable 1
+1 watchpoints enabled.
+
+(lldb) watchpoint disable 1
+1 watchpoints disabled.
+
+(lldb) watchpoint delete 1
+1 watchpoints deleted.
+</code></pre>
+<h3><a id="%E6%9B%B4%E5%A4%9A%E5%91%BD%E4%BB%A4" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>更多命令</h3>
+<p>本文只列一些常用的命令，更多命令可以通过在 <code>lldb</code> 命令行中输入 <code>help</code> 查看。</p>
+
+                </div>
+                <div class="content-responsive post-footer">
+                    <blockquote>
+                        转载请注明出处：<a href="https://wxdut.com/16749127493537.html">LLDB - 源码调试工具 - 专业点</a>
+                        <br><br>欢迎关注我的公众号<br><br>
+                        <img src="media/15196482316286/扫码_搜索联合传播样式-标准色版.png">
+                    </blockquote>
+                    <!-- <blockquote>我的博客会及时同步到腾讯云+社区，邀请大家一同入驻：
+                        <br><a href="https://cloud.tencent.com/developer/support-plan?invite_code=mqbbongvgxmp" target="__blank">https://cloud.tencent.com/developer/support-plan?invite_code=mqbbongvgxmp</a>
+                    </blockquote> -->
+                </div>
+            </div>
+            <!-- /.blog-post -->
+        </div>
+        <!-- /.blog-main -->
+        <!-- slider start --> <div class="col-sm-3 blog-sidebar">
+    <!-- <div class="sidebar-module">
+        <h4>科学上网</h4>
+        <a href="http://order.yizhihongxing2017.com/aff.php?aff=9247" target="_blank">
+            <img src="https://cdn.wxdut.com/asset/img/yzhx_232_215.jpg" >
+        </a>
+    </div> -->
+    <div class="sidebar-module">
+        <h4>分类</h4>
+        
+            <a href="%E8%B7%A8%E5%B9%B3%E5%8F%B0.html">跨平台&nbsp;(4)</a><br>
+        
+            <a href="iOS.html">iOS&nbsp;(14)</a><br>
+        
+            <a href="Android.html">Android&nbsp;(2)</a><br>
+        
+            <a href="%E6%B8%B2%E6%9F%93.html">渲染&nbsp;(9)</a><br>
+        
+            <a href="%E9%9F%B3%E8%A7%86%E9%A2%91.html">音视频&nbsp;(2)</a><br>
+        
+            <a href="%E6%95%88%E7%8E%87%E6%8F%90%E5%8D%87.html">效率提升&nbsp;(4)</a><br>
+        
+            <a href="%E5%85%B6%E4%BB%96.html">其他&nbsp;(1)</a><br>
+        
+    </div>
+    <div class="sidebar-module" id="sidebar-recent-article">
+        <h4>最近文章</h4>  
+         <a href="16887976127793.html">Android so 动态库相关知识</a>
+            <br />   
+         <a href="16886092802260.html">浅谈大前端跨端方案</a>
+            <br />   
+         <a href="16826065078832.html">如何把家里宽带配置为云服务器</a>
+            <br />   
+         <a href="16788697947776.html">iOS 内存分析 - Allocations</a>
+            <br />   
+         <a href="16782743400583.html">XCode Instruments 使用</a>
+            <br />   
+         <a href="16749127493537.html">LLDB - 源码调试工具</a>
+            <br />   
+         <a href="16748972547111.html">浅谈 C/C++ 编译流程和常见编译器</a>
+            <br />   
+         <a href="16729723756811.html">iOS framework 静态库相关知识</a>
+            <br />   
+         <a href="16705731655475.html">CMake 实用指南</a>
+            <br />   
+         <a href="16680671661314.html">一分钟下载最新 XCode</a>
+            <br />   
+          
+          
+          
+          
+          
+          
+          
+          
+          
+         
+    </div>
+    <div class="sidebar-module">
+        <h4>推荐</h4>
+        <a href="https://wxdut.com/world">
+            <img src="https://qiniu.wxdut.com/mweb/16645116745782.jpg">
+        </a>
+    </div>
+    <div class="sidebar-module sidebar-toc" id="sidebar-toc" style="display: none;">
+        <h4>目录</h4>
+        <div id="toc" style="margin-left: 0em;"></div>
+    </div>
+    <div class="sidebar-module">
+        <h4>公众号推荐</h4>
+        欢迎关注我的公众号<br>一起愉快的交流。<br><br>
+
+        <img src="media/15196482316286/扫码_搜索联合传播样式-白色版.png">
+    </div>
+</div>
+<!-- /.blog-sidebar -->
+</div>
+<!-- /.row -->
+</div>
+<!-- /.container --> <link rel="stylesheet" href="asset/gitalk/gitalk.css">
+<script src="asset/gitalk/gitalk.min.js"></script>
+<!-- gitalk -->
+<div class="container markdown-body" id="gitalk-container" ></div>
+
+<!-- footer -->
+<footer class="blog-footer">
+    <p>
+        ©2022 <a target="_blank" href="http://wxdut.com">Wxdut.com</a>. All rights reserved.
+    </p>
+    <p>
+        <a href="https://beian.miit.gov.cn/">粤ICP备17041161号-1</a>
+    </p>
+    <p>
+        <a href="#">Back to top</a>
+    </p>
+</footer>
+<!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
+<script src="asset/js/ie10-viewport-bug-workaround.js"></script>
+<script type="text/javascript" src="asset/js/footer.html.js"></script>
+<!-- MWeb 会把下面这一行注释换成 section-chart-support.html 的内容，我只能说操作太骚。。 -->
+
+
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">MathJax.Hub.Config({TeX: { equationNumbers: { autoNumber: "AMS" } }});</script>
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="asset/prism.js"></script>
+
+  
+</body>
+
+</html>

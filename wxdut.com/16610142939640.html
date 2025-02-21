@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" sizes="32x32" href="asset/img/favicon.png" />
+    <link rel="shortcut icon" href="asset/img/favicon.png" type="image/png" />
+    <link href="atom.xml" rel="alternate" title="专业点" type="application/atom+xml">
+    <title>
+         攻破小区门禁系统 - 专业点 
+    </title>
+    <script src="asset/js/jquery-3.3.1.min.js"></script>
+    <script src="asset/js/popper.min.js"></script>
+    <script src="asset/js/darkreader.min.js"></script>
+    <link href="asset/css/mweb-github.css" rel="stylesheet" type="text/css">
+    <link href="asset/css/style.css" rel="stylesheet" type="text/css">
+    <script src="asset/highlightjs/highlight.pack.js"></script>
+    <link href="asset/highlightjs/styles/github.css" media="screen, projection" rel="stylesheet" type="text/css">
+    <link href="asset/bootstrap-4.2.1-dist/css/bootstrap.min.css" rel="stylesheet" type="text/css">
+    <script src="asset/bootstrap-4.2.1-dist/js/bootstrap.min.js"></script>
+    <link href="asset/bootstrap-select-1.13.2/css/bootstrap-select.min.css" rel="stylesheet" type="text/css">
+    <script src="asset/bootstrap-select-1.13.2/js/bootstrap-select.min.js"></script>
+
+    <script>
+        hljs.initHighlightingOnLoad();
+        DarkReader.enable();
+    </script>
+    <!--[if lt IE 9]>
+      <script src="asset/js/html5shiv.min.js"></script>
+    <![endif]-->
+</head>
+
+<body>
+    <div class="blog-masthead">
+        <div class="container">
+            <nav class="blog-nav">
+                
+                    <a class="blog-nav-item" id="/" href="/">博客</a> 
+                
+                    <a class="blog-nav-item" id="archives.html" href="archives.html">归档</a> 
+                
+                    <a class="blog-nav-item" id="tools.html" href="tools.html">工具</a> 
+                
+                    <a class="blog-nav-item" id="about.html" href="about.html">关于</a> 
+                
+            </nav>
+        </div>
+    </div>
+    
+
+    <script type="text/javascript" src="asset/js/header.html.js"></script> <script type="text/javascript">
+$(function() {
+    $('16610142939640.html').addClass('active');
+});
+</script>
+<div class="container markdown-body" id="content-wrap">
+    <div class="row">
+        <div class="col-sm-9 blog-main">
+            <div class="blog-post">
+                <h2 class="blog-post-title">攻破小区门禁系统</h2>
+                <p class="blog-post-meta">2022/8/21 &nbsp;posted in  
+                    <a class='category' href='%E6%95%88%E7%8E%87%E6%8F%90%E5%8D%87.html'>效率提升</a>&nbsp;   
+                </p>
+                <div class="content-responsive" id="post-content">
+                    <p>大家好，久违了，好久没写公众号文章了。今天有些时间，翻了翻文档库，发现之前一个写了一半的文章。今天写一写和大家分享下~</p>
+<span id="more"></span><!-- more -->
+<hr />
+<p>很多小区的大门和楼栋门都可以通过 NFC 实体卡片或者手机 APP 的方式打开，我所在的小区也不例外。</p>
+<p>开门是一个每天都会发生好多次的操作，我们会频繁进出小区，外卖快递等等经常打电话让开楼栋门。所以寻求一个最便捷的方式很有必要。</p>
+<p>首先我从不用 NFC 实体卡，这玩意和带个钥匙没啥区别，到门口了我还得翻出实体卡，还容易丢。非常不方便。</p>
+<p>通过手机 APP 开锁倒是挺方便，你总不会不带手机吧。</p>
+<p>但是通过 APP 开锁也有个很大的痛点 - 广告。没错，一般这种开锁 APP 都是些小公司开发的，体验贼差，广告贼多，流程贼长。</p>
+<p>我这里录个视频，大家可以感受下。。。</p>
+<p><a href="media/16519243679102/mp_lxj.mp4"></a><br />
+<video id="video" controls="" preload="metadata" height=100% width=100%><br />
+<source id="mp4" src="media/16519243679102/mp_lxj.mp4" type="video/mp4"><br />
+</video></p>
+<p>这是一个 12 秒的视频，也就意味着每次开门都需要十几秒的时间，这简直太慢了。</p>
+<p>接下来，我要开始破解了！</p>
+<p>首先从技术的角度去看，我们打开 APP 开锁，其实就是发了一个网络请求，可能还会涉及登录等操作。</p>
+<p>那么我们如果在手机上开锁，然后对开锁的请求进行抓包，将具体参数记录下来，下次开锁时只需要做一次重放操作就可以了。</p>
+<p>原理很简单，说干就干。</p>
+<p>我平时抓包用 Charles，这个工具简单易用，可以很方便的抓 HTTP 和 HTTPS 的请求。安装、设置代理、操作、抓包，一气呵成。结果我发现手机开锁后，Charles 上并没有看到任何相关的请求记录。</p>
+<p><img src="media/16519243679102/16519265797675.jpg" alt="" /></p>
+<p>奇了个怪，没有任何网络请求，难道是通过 NFC 或蓝牙实现的？也不对呀，因为可以远程开锁，所以肯定是通过网络开锁的。</p>
+<p>经过了解，这玩意发的网络请求竟然不是 HTTP 协议，而是 SIP 协议。至于 SIP 是啥，就是一种实现 VoIP 的协议，简单理解就是实现语音通话的。因为 Charles 只能抓 HTTP 协议，所以得换个工具。</p>
+<p>Wireshark 是另外一款抓包工具，可以抓所有协议的请求。说干就干。监听手机之后，操作开锁，立刻就看到了相关的请求。</p>
+<p><img src="media/16519243679102/16519274374078.jpg" alt="" /></p>
+<p>上图是开锁的关键请求，我们可以清晰的看到所有需要的信息，然后在手机端重放一下这个 SIP 请求即可。</p>
+<p>基于此，搞了个 iOS APP，后面开锁只需要打开 APP，然后点一下想开的门即可。<br />
+<img src="media/16519243679102/16519276228810.jpg" alt="" /></p>
+<p>嗯，至于这个 APP 的 UI，确实丑。。但是不影响开锁速度，就懒得优化了。。<br />
+<img src="media/16519243679102/16519277141833.jpg" alt="" /></p>
+<p>经过这一波操作，开锁又原来的十几秒缩短为现在的三四秒，每天可以省出一分钟的时间给你的女神多聊几句天。</p>
+<p><img src="media/16519243679102/16519308045854.jpg" alt="" /></p>
+<p>最后，你们小区的开锁方式是啥样的呀？评论区告诉我~</p>
+<p>有能力的可以考虑破解一下，方便自己。但是注意不要分享给很多人用，尊重开发者的劳动成果吧，也避免给自己招来不必要的麻烦。</p>
+
+                </div>
+                <div class="content-responsive post-footer">
+                    <blockquote>
+                        转载请注明出处：<a href="https://wxdut.com/16610142939640.html">攻破小区门禁系统 - 专业点</a>
+                        <br><br>欢迎关注我的公众号<br><br>
+                        <img src="media/15196482316286/扫码_搜索联合传播样式-标准色版.png">
+                    </blockquote>
+                    <!-- <blockquote>我的博客会及时同步到腾讯云+社区，邀请大家一同入驻：
+                        <br><a href="https://cloud.tencent.com/developer/support-plan?invite_code=mqbbongvgxmp" target="__blank">https://cloud.tencent.com/developer/support-plan?invite_code=mqbbongvgxmp</a>
+                    </blockquote> -->
+                </div>
+            </div>
+            <!-- /.blog-post -->
+        </div>
+        <!-- /.blog-main -->
+        <!-- slider start --> <div class="col-sm-3 blog-sidebar">
+    <!-- <div class="sidebar-module">
+        <h4>科学上网</h4>
+        <a href="http://order.yizhihongxing2017.com/aff.php?aff=9247" target="_blank">
+            <img src="https://cdn.wxdut.com/asset/img/yzhx_232_215.jpg" >
+        </a>
+    </div> -->
+    <div class="sidebar-module">
+        <h4>分类</h4>
+        
+            <a href="%E8%B7%A8%E5%B9%B3%E5%8F%B0.html">跨平台&nbsp;(4)</a><br>
+        
+            <a href="iOS.html">iOS&nbsp;(14)</a><br>
+        
+            <a href="Android.html">Android&nbsp;(2)</a><br>
+        
+            <a href="%E6%B8%B2%E6%9F%93.html">渲染&nbsp;(9)</a><br>
+        
+            <a href="%E9%9F%B3%E8%A7%86%E9%A2%91.html">音视频&nbsp;(2)</a><br>
+        
+            <a href="%E6%95%88%E7%8E%87%E6%8F%90%E5%8D%87.html">效率提升&nbsp;(4)</a><br>
+        
+            <a href="%E5%85%B6%E4%BB%96.html">其他&nbsp;(1)</a><br>
+        
+    </div>
+    <div class="sidebar-module" id="sidebar-recent-article">
+        <h4>最近文章</h4>  
+         <a href="16887976127793.html">Android so 动态库相关知识</a>
+            <br />   
+         <a href="16886092802260.html">浅谈大前端跨端方案</a>
+            <br />   
+         <a href="16826065078832.html">如何把家里宽带配置为云服务器</a>
+            <br />   
+         <a href="16788697947776.html">iOS 内存分析 - Allocations</a>
+            <br />   
+         <a href="16782743400583.html">XCode Instruments 使用</a>
+            <br />   
+         <a href="16749127493537.html">LLDB - 源码调试工具</a>
+            <br />   
+         <a href="16748972547111.html">浅谈 C/C++ 编译流程和常见编译器</a>
+            <br />   
+         <a href="16729723756811.html">iOS framework 静态库相关知识</a>
+            <br />   
+         <a href="16705731655475.html">CMake 实用指南</a>
+            <br />   
+         <a href="16680671661314.html">一分钟下载最新 XCode</a>
+            <br />   
+          
+          
+          
+          
+          
+          
+          
+          
+          
+         
+    </div>
+    <div class="sidebar-module">
+        <h4>推荐</h4>
+        <a href="https://wxdut.com/world">
+            <img src="https://qiniu.wxdut.com/mweb/16645116745782.jpg">
+        </a>
+    </div>
+    <div class="sidebar-module sidebar-toc" id="sidebar-toc" style="display: none;">
+        <h4>目录</h4>
+        <div id="toc" style="margin-left: 0em;"></div>
+    </div>
+    <div class="sidebar-module">
+        <h4>公众号推荐</h4>
+        欢迎关注我的公众号<br>一起愉快的交流。<br><br>
+
+        <img src="media/15196482316286/扫码_搜索联合传播样式-白色版.png">
+    </div>
+</div>
+<!-- /.blog-sidebar -->
+</div>
+<!-- /.row -->
+</div>
+<!-- /.container --> <link rel="stylesheet" href="asset/gitalk/gitalk.css">
+<script src="asset/gitalk/gitalk.min.js"></script>
+<!-- gitalk -->
+<div class="container markdown-body" id="gitalk-container" ></div>
+
+<!-- footer -->
+<footer class="blog-footer">
+    <p>
+        ©2022 <a target="_blank" href="http://wxdut.com">Wxdut.com</a>. All rights reserved.
+    </p>
+    <p>
+        <a href="https://beian.miit.gov.cn/">粤ICP备17041161号-1</a>
+    </p>
+    <p>
+        <a href="#">Back to top</a>
+    </p>
+</footer>
+<!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
+<script src="asset/js/ie10-viewport-bug-workaround.js"></script>
+<script type="text/javascript" src="asset/js/footer.html.js"></script>
+<!-- MWeb 会把下面这一行注释换成 section-chart-support.html 的内容，我只能说操作太骚。。 -->
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+</body>
+
+</html>

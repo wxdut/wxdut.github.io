@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" sizes="32x32" href="asset/img/favicon.png" />
+    <link rel="shortcut icon" href="asset/img/favicon.png" type="image/png" />
+    <link href="atom.xml" rel="alternate" title="专业点" type="application/atom+xml">
+    <title>
+         GLSL-概述 - 专业点 
+    </title>
+    <script src="asset/js/jquery-3.3.1.min.js"></script>
+    <script src="asset/js/popper.min.js"></script>
+    <script src="asset/js/darkreader.min.js"></script>
+    <link href="asset/css/mweb-github.css" rel="stylesheet" type="text/css">
+    <link href="asset/css/style.css" rel="stylesheet" type="text/css">
+    <script src="asset/highlightjs/highlight.pack.js"></script>
+    <link href="asset/highlightjs/styles/github.css" media="screen, projection" rel="stylesheet" type="text/css">
+    <link href="asset/bootstrap-4.2.1-dist/css/bootstrap.min.css" rel="stylesheet" type="text/css">
+    <script src="asset/bootstrap-4.2.1-dist/js/bootstrap.min.js"></script>
+    <link href="asset/bootstrap-select-1.13.2/css/bootstrap-select.min.css" rel="stylesheet" type="text/css">
+    <script src="asset/bootstrap-select-1.13.2/js/bootstrap-select.min.js"></script>
+
+    <script>
+        hljs.initHighlightingOnLoad();
+        DarkReader.enable();
+    </script>
+    <!--[if lt IE 9]>
+      <script src="asset/js/html5shiv.min.js"></script>
+    <![endif]-->
+</head>
+
+<body>
+    <div class="blog-masthead">
+        <div class="container">
+            <nav class="blog-nav">
+                
+                    <a class="blog-nav-item" id="/" href="/">博客</a> 
+                
+                    <a class="blog-nav-item" id="archives.html" href="archives.html">归档</a> 
+                
+                    <a class="blog-nav-item" id="tools.html" href="tools.html">工具</a> 
+                
+                    <a class="blog-nav-item" id="about.html" href="about.html">关于</a> 
+                
+            </nav>
+        </div>
+    </div>
+    
+
+    <script type="text/javascript" src="asset/js/header.html.js"></script> <script type="text/javascript">
+$(function() {
+    $('15271720033294.html').addClass('active');
+});
+</script>
+<div class="container markdown-body" id="content-wrap">
+    <div class="row">
+        <div class="col-sm-9 blog-main">
+            <div class="blog-post">
+                <h2 class="blog-post-title">GLSL-概述</h2>
+                <p class="blog-post-meta">2018/5/24 &nbsp;posted in  
+                    <a class='category' href='%E6%B8%B2%E6%9F%93.html'>渲染</a>&nbsp;   
+                </p>
+                <div class="content-responsive" id="post-content">
+                    <span id="more"></span><!-- more -->
+<h2><a id="opengl-es-2-0%E7%AE%A1%E7%BA%BF" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>OpenGL ES 2.0 管线</h2>
+<p>OpenGL ES的版本主要有1.x，2.x，3.x等等，目前最流行、适用范围最广的是2.x。从2.0开始，OpenGL引入<em>管线</em>的概念，摒弃之前的<em>fixed function</em>的概念，加入<em>shader</em>可编程单元。</p>
+<p><img src="media/15236972250130/opengles_1x_pipeline.gif" alt="opengles_1x_pipeline" /><br />
+<img src="media/15236972250130/opengles_20_pipeline2.gif" alt="opengles_20_pipeline2" /></p>
+<p>其中可操作的两个步骤分别是<em>Vertex Shader</em>和<em>Fragment Shader</em>。本文介绍的GLSL主要是用来编写这两种Shader的。</p>
+<p>未经特殊说明，本文默认基于OpenGL 2.0x。</p>
+<h2><a id="opengl-es-shading%E6%A6%82%E8%A7%88" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>OpenGL ES Shading 概览</h2>
+<p>上面提到，Shader总共分两种：<em>Vertex Shader</em>和<em>Fragment Shader</em>。下文中的GLSL语法除非特殊说明，均适用于二者。</p>
+<h3><a id="vertex%E5%A4%84%E7%90%86%E5%99%A8" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>Vertex 处理器</h3>
+<p><em>Vertex处理器</em>是一个可编程单元，它以顶点信息作为输入，进行相应的处理。运行在其上的代码被称为<em>Vertex Shader</em>。<br />
+<em>Vertex Shader</em>同一时间只能处理一个Vertex的信息，也无法处理需要多个Vertex信息的操作。</p>
+<h3><a id="fragment%E5%A4%84%E7%90%86%E5%99%A8" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>Fragment 处理器</h3>
+<p><em>Vertex处理器</em>是一个可编程单元，它以Vertex处理器处理之后的结果作为输入，进行相应的处理。运行在其上的代码被称为<em>Fragment Shader</em>。<br />
+<em>Fragment Shader</em>不能修改<em>Fragment</em>的位置信息，也不能获取到其他<em>Fragment</em>的数据。<br />
+<em>Fragment Shader</em>处理后的数据用来更新内存或文理，进而显示到屏幕上。</p>
+
+                </div>
+                <div class="content-responsive post-footer">
+                    <blockquote>
+                        转载请注明出处：<a href="https://wxdut.com/15271720033294.html">GLSL-概述 - 专业点</a>
+                        <br><br>欢迎关注我的公众号<br><br>
+                        <img src="media/15196482316286/扫码_搜索联合传播样式-标准色版.png">
+                    </blockquote>
+                    <!-- <blockquote>我的博客会及时同步到腾讯云+社区，邀请大家一同入驻：
+                        <br><a href="https://cloud.tencent.com/developer/support-plan?invite_code=mqbbongvgxmp" target="__blank">https://cloud.tencent.com/developer/support-plan?invite_code=mqbbongvgxmp</a>
+                    </blockquote> -->
+                </div>
+            </div>
+            <!-- /.blog-post -->
+        </div>
+        <!-- /.blog-main -->
+        <!-- slider start --> <div class="col-sm-3 blog-sidebar">
+    <!-- <div class="sidebar-module">
+        <h4>科学上网</h4>
+        <a href="http://order.yizhihongxing2017.com/aff.php?aff=9247" target="_blank">
+            <img src="https://cdn.wxdut.com/asset/img/yzhx_232_215.jpg" >
+        </a>
+    </div> -->
+    <div class="sidebar-module">
+        <h4>分类</h4>
+        
+            <a href="%E8%B7%A8%E5%B9%B3%E5%8F%B0.html">跨平台&nbsp;(4)</a><br>
+        
+            <a href="iOS.html">iOS&nbsp;(14)</a><br>
+        
+            <a href="Android.html">Android&nbsp;(2)</a><br>
+        
+            <a href="%E6%B8%B2%E6%9F%93.html">渲染&nbsp;(9)</a><br>
+        
+            <a href="%E9%9F%B3%E8%A7%86%E9%A2%91.html">音视频&nbsp;(2)</a><br>
+        
+            <a href="%E6%95%88%E7%8E%87%E6%8F%90%E5%8D%87.html">效率提升&nbsp;(4)</a><br>
+        
+            <a href="%E5%85%B6%E4%BB%96.html">其他&nbsp;(1)</a><br>
+        
+    </div>
+    <div class="sidebar-module" id="sidebar-recent-article">
+        <h4>最近文章</h4>  
+         <a href="16887976127793.html">Android so 动态库相关知识</a>
+            <br />   
+         <a href="16886092802260.html">浅谈大前端跨端方案</a>
+            <br />   
+         <a href="16826065078832.html">如何把家里宽带配置为云服务器</a>
+            <br />   
+         <a href="16788697947776.html">iOS 内存分析 - Allocations</a>
+            <br />   
+         <a href="16782743400583.html">XCode Instruments 使用</a>
+            <br />   
+         <a href="16749127493537.html">LLDB - 源码调试工具</a>
+            <br />   
+         <a href="16748972547111.html">浅谈 C/C++ 编译流程和常见编译器</a>
+            <br />   
+         <a href="16729723756811.html">iOS framework 静态库相关知识</a>
+            <br />   
+         <a href="16705731655475.html">CMake 实用指南</a>
+            <br />   
+         <a href="16680671661314.html">一分钟下载最新 XCode</a>
+            <br />   
+          
+          
+          
+          
+          
+          
+          
+          
+          
+         
+    </div>
+    <div class="sidebar-module">
+        <h4>推荐</h4>
+        <a href="https://wxdut.com/world">
+            <img src="https://qiniu.wxdut.com/mweb/16645116745782.jpg">
+        </a>
+    </div>
+    <div class="sidebar-module sidebar-toc" id="sidebar-toc" style="display: none;">
+        <h4>目录</h4>
+        <div id="toc" style="margin-left: 0em;"></div>
+    </div>
+    <div class="sidebar-module">
+        <h4>公众号推荐</h4>
+        欢迎关注我的公众号<br>一起愉快的交流。<br><br>
+
+        <img src="media/15196482316286/扫码_搜索联合传播样式-白色版.png">
+    </div>
+</div>
+<!-- /.blog-sidebar -->
+</div>
+<!-- /.row -->
+</div>
+<!-- /.container --> <link rel="stylesheet" href="asset/gitalk/gitalk.css">
+<script src="asset/gitalk/gitalk.min.js"></script>
+<!-- gitalk -->
+<div class="container markdown-body" id="gitalk-container" ></div>
+
+<!-- footer -->
+<footer class="blog-footer">
+    <p>
+        ©2022 <a target="_blank" href="http://wxdut.com">Wxdut.com</a>. All rights reserved.
+    </p>
+    <p>
+        <a href="https://beian.miit.gov.cn/">粤ICP备17041161号-1</a>
+    </p>
+    <p>
+        <a href="#">Back to top</a>
+    </p>
+</footer>
+<!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
+<script src="asset/js/ie10-viewport-bug-workaround.js"></script>
+<script type="text/javascript" src="asset/js/footer.html.js"></script>
+<!-- MWeb 会把下面这一行注释换成 section-chart-support.html 的内容，我只能说操作太骚。。 -->
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+</body>
+
+</html>
