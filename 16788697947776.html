@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" sizes="32x32" href="asset/img/favicon.png" />
+    <link rel="shortcut icon" href="asset/img/favicon.png" type="image/png" />
+    <link href="atom.xml" rel="alternate" title="专业点" type="application/atom+xml">
+    <title>
+         iOS 内存分析 - Allocations - 专业点 
+    </title>
+    <script src="asset/js/jquery-3.3.1.min.js"></script>
+    <script src="asset/js/popper.min.js"></script>
+    <script src="asset/js/darkreader.min.js"></script>
+    <link href="asset/css/mweb-github.css" rel="stylesheet" type="text/css">
+    <link href="asset/css/style.css" rel="stylesheet" type="text/css">
+    <script src="asset/highlightjs/highlight.pack.js"></script>
+    <link href="asset/highlightjs/styles/github.css" media="screen, projection" rel="stylesheet" type="text/css">
+    <link href="asset/bootstrap-4.2.1-dist/css/bootstrap.min.css" rel="stylesheet" type="text/css">
+    <script src="asset/bootstrap-4.2.1-dist/js/bootstrap.min.js"></script>
+    <link href="asset/bootstrap-select-1.13.2/css/bootstrap-select.min.css" rel="stylesheet" type="text/css">
+    <script src="asset/bootstrap-select-1.13.2/js/bootstrap-select.min.js"></script>
+
+    <script>
+        hljs.initHighlightingOnLoad();
+        DarkReader.enable();
+    </script>
+    <!--[if lt IE 9]>
+      <script src="asset/js/html5shiv.min.js"></script>
+    <![endif]-->
+</head>
+
+<body>
+    <div class="blog-masthead">
+        <div class="container">
+            <nav class="blog-nav">
+                
+                    <a class="blog-nav-item" id="/" href="/">博客</a> 
+                
+                    <a class="blog-nav-item" id="archives.html" href="archives.html">归档</a> 
+                
+                    <a class="blog-nav-item" id="tools.html" href="tools.html">工具</a> 
+                
+                    <a class="blog-nav-item" id="about.html" href="about.html">关于</a> 
+                
+            </nav>
+        </div>
+    </div>
+    
+
+    <script type="text/javascript" src="asset/js/header.html.js"></script> <script type="text/javascript">
+$(function() {
+    $('16788697947776.html').addClass('active');
+});
+</script>
+<div class="container markdown-body" id="content-wrap">
+    <div class="row">
+        <div class="col-sm-9 blog-main">
+            <div class="blog-post">
+                <h2 class="blog-post-title">iOS 内存分析 - Allocations</h2>
+                <p class="blog-post-meta">2023/3/15 &nbsp;posted in  
+                    <a class='category' href='iOS.html'>iOS</a>&nbsp;   
+                </p>
+                <div class="content-responsive" id="post-content">
+                    <p>本文以实际案例入手，介绍如何使用 <code>Instruments</code> 提供的 <code>Allocations</code> 分析内存申请情况来优化内存占用、分析泄露问题。</p>
+<span id="more"></span><!-- more -->
+<p><code>Allocations</code> 统计所有内存的申请，包括堆内存和栈内存，并可以查看每次申请内存时的大小、函数调用链等重要信息。对我们分析内存有很大的帮助。</p>
+<p><img src="media/16788697947776/16797332856284.jpg" alt="" /></p>
+<p>提到泄露，其实 <code>Instruments</code> 还提供了一个 <code>Leaks</code> 的工具专门分析泄露问题。但是实际遇到的问题往往没那么简单。只有没有任何对象和指针指向的对象才会被 <code>Leaks</code> 认为是泄露，但是实际场景中很多泄露的内存其实是有指针指向它的，只是逻辑比较复杂我们不知道有谁指向它。这种情况下分析内存申请情况就很重要了，这里介绍一些实际的例子。</p>
+<h2><a id="%E5%88%86%E6%9E%90%E6%B3%84%E9%9C%B2" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>分析泄露</h2>
+<p>前段时间遇到了个内存问题，停留在某个页面不动，但是内存却一直在涨，很明显有地方在一直申请内存没释放，但是这并不代表着泄露了，因为有地方持有着这些对象，只是我根本不知道谁持有的。</p>
+<p>所以我使用 <code>Allocations</code> 截取一段时间内的内存申请情况。可以看到申请的内存的列表，并且可以看到每次申请内存时的堆栈。</p>
+<p><img src="media/16788697947776/WeChatWorkScreenshot_75b35429-7fd0-422d-b3ed-26fe619cf1dc.png" alt="WeChatWorkScreenshot_75b35429-7fd0-422d-b3ed-26fe619cf1dc" /></p>
+<p>只需要分析这些内存都是哪个函数申请的就知道泄露点了。同时，还可以双击右侧的堆栈里的某个函数，就可以看到下面这种聚合的信息，可以清楚的看到某个函数或者某一行代码申请了多少内存。</p>
+<p><img src="media/16788697947776/WeChatWorkScreenshot_c1b0aaf6-595f-460d-81ad-258f4b3fe98b.png" alt="WeChatWorkScreenshot_c1b0aaf6-595f-460d-81ad-258f4b3fe98b" /></p>
+<p>以上图为例，泄露的地方可以确认是红框里的内容。</p>
+<h2><a id="%E5%88%86%E6%9E%90%E5%86%85%E5%AD%98%E9%97%AE%E9%A2%98" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>分析内存问题</h2>
+<p>前段时间遇到个问题，有个小游戏首次播放音频会增加 <code>50 M</code> 内存，但是同样的音频再次播放就只会增加 <strong>30 M</strong> 内存，稳定差了 <code>20M</code>。</p>
+<p>很显然，需要分析一下首播和次播时申请的内存有什么区别。</p>
+<p>用 <code>Allocations</code> 分析后发现首播确实比次播多了一些内存申请记录。</p>
+<p><img src="media/16788697947776/16797342019261.jpg" alt="" /></p>
+<p>找到首播多申请的内存记录，点击查看堆栈，就可以很清晰的看到是哪些逻辑申请的，这些逻辑次播没有被调用。问题迎刃而解。</p>
+
+                </div>
+                <div class="content-responsive post-footer">
+                    <blockquote>
+                        转载请注明出处：<a href="https://wxdut.com/16788697947776.html">iOS 内存分析 - Allocations - 专业点</a>
+                        <br><br>欢迎关注我的公众号<br><br>
+                        <img src="media/15196482316286/扫码_搜索联合传播样式-标准色版.png">
+                    </blockquote>
+                    <!-- <blockquote>我的博客会及时同步到腾讯云+社区，邀请大家一同入驻：
+                        <br><a href="https://cloud.tencent.com/developer/support-plan?invite_code=mqbbongvgxmp" target="__blank">https://cloud.tencent.com/developer/support-plan?invite_code=mqbbongvgxmp</a>
+                    </blockquote> -->
+                </div>
+            </div>
+            <!-- /.blog-post -->
+        </div>
+        <!-- /.blog-main -->
+        <!-- slider start --> <div class="col-sm-3 blog-sidebar">
+    <!-- <div class="sidebar-module">
+        <h4>科学上网</h4>
+        <a href="http://order.yizhihongxing2017.com/aff.php?aff=9247" target="_blank">
+            <img src="https://cdn.wxdut.com/asset/img/yzhx_232_215.jpg" >
+        </a>
+    </div> -->
+    <div class="sidebar-module">
+        <h4>分类</h4>
+        
+            <a href="%E8%B7%A8%E5%B9%B3%E5%8F%B0.html">跨平台&nbsp;(4)</a><br>
+        
+            <a href="iOS.html">iOS&nbsp;(14)</a><br>
+        
+            <a href="Android.html">Android&nbsp;(2)</a><br>
+        
+            <a href="%E6%B8%B2%E6%9F%93.html">渲染&nbsp;(9)</a><br>
+        
+            <a href="%E9%9F%B3%E8%A7%86%E9%A2%91.html">音视频&nbsp;(2)</a><br>
+        
+            <a href="%E6%95%88%E7%8E%87%E6%8F%90%E5%8D%87.html">效率提升&nbsp;(4)</a><br>
+        
+            <a href="%E5%85%B6%E4%BB%96.html">其他&nbsp;(1)</a><br>
+        
+    </div>
+    <div class="sidebar-module" id="sidebar-recent-article">
+        <h4>最近文章</h4>  
+         <a href="16887976127793.html">Android so 动态库相关知识</a>
+            <br />   
+         <a href="16886092802260.html">浅谈大前端跨端方案</a>
+            <br />   
+         <a href="16826065078832.html">如何把家里宽带配置为云服务器</a>
+            <br />   
+         <a href="16788697947776.html">iOS 内存分析 - Allocations</a>
+            <br />   
+         <a href="16782743400583.html">XCode Instruments 使用</a>
+            <br />   
+         <a href="16749127493537.html">LLDB - 源码调试工具</a>
+            <br />   
+         <a href="16748972547111.html">浅谈 C/C++ 编译流程和常见编译器</a>
+            <br />   
+         <a href="16729723756811.html">iOS framework 静态库相关知识</a>
+            <br />   
+         <a href="16705731655475.html">CMake 实用指南</a>
+            <br />   
+         <a href="16680671661314.html">一分钟下载最新 XCode</a>
+            <br />   
+          
+          
+          
+          
+          
+          
+          
+          
+          
+         
+    </div>
+    <div class="sidebar-module">
+        <h4>推荐</h4>
+        <a href="https://wxdut.com/world">
+            <img src="https://qiniu.wxdut.com/mweb/16645116745782.jpg">
+        </a>
+    </div>
+    <div class="sidebar-module sidebar-toc" id="sidebar-toc" style="display: none;">
+        <h4>目录</h4>
+        <div id="toc" style="margin-left: 0em;"></div>
+    </div>
+    <div class="sidebar-module">
+        <h4>公众号推荐</h4>
+        欢迎关注我的公众号<br>一起愉快的交流。<br><br>
+
+        <img src="media/15196482316286/扫码_搜索联合传播样式-白色版.png">
+    </div>
+</div>
+<!-- /.blog-sidebar -->
+</div>
+<!-- /.row -->
+</div>
+<!-- /.container --> <link rel="stylesheet" href="asset/gitalk/gitalk.css">
+<script src="asset/gitalk/gitalk.min.js"></script>
+<!-- gitalk -->
+<div class="container markdown-body" id="gitalk-container" ></div>
+
+<!-- footer -->
+<footer class="blog-footer">
+    <p>
+        ©2022 <a target="_blank" href="http://wxdut.com">Wxdut.com</a>. All rights reserved.
+    </p>
+    <p>
+        <a href="https://beian.miit.gov.cn/">粤ICP备17041161号-1</a>
+    </p>
+    <p>
+        <a href="#">Back to top</a>
+    </p>
+</footer>
+<!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
+<script src="asset/js/ie10-viewport-bug-workaround.js"></script>
+<script type="text/javascript" src="asset/js/footer.html.js"></script>
+<!-- MWeb 会把下面这一行注释换成 section-chart-support.html 的内容，我只能说操作太骚。。 -->
+
+
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">MathJax.Hub.Config({TeX: { equationNumbers: { autoNumber: "AMS" } }});</script>
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+</body>
+
+</html>

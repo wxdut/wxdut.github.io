@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" sizes="32x32" href="asset/img/favicon.png" />
+    <link rel="shortcut icon" href="asset/img/favicon.png" type="image/png" />
+    <link href="atom.xml" rel="alternate" title="专业点" type="application/atom+xml">
+    <title>
+         检索匹配的利器：正则表达式 - 专业点 
+    </title>
+    <script src="asset/js/jquery-3.3.1.min.js"></script>
+    <script src="asset/js/popper.min.js"></script>
+    <script src="asset/js/darkreader.min.js"></script>
+    <link href="asset/css/mweb-github.css" rel="stylesheet" type="text/css">
+    <link href="asset/css/style.css" rel="stylesheet" type="text/css">
+    <script src="asset/highlightjs/highlight.pack.js"></script>
+    <link href="asset/highlightjs/styles/github.css" media="screen, projection" rel="stylesheet" type="text/css">
+    <link href="asset/bootstrap-4.2.1-dist/css/bootstrap.min.css" rel="stylesheet" type="text/css">
+    <script src="asset/bootstrap-4.2.1-dist/js/bootstrap.min.js"></script>
+    <link href="asset/bootstrap-select-1.13.2/css/bootstrap-select.min.css" rel="stylesheet" type="text/css">
+    <script src="asset/bootstrap-select-1.13.2/js/bootstrap-select.min.js"></script>
+
+    <script>
+        hljs.initHighlightingOnLoad();
+        DarkReader.enable();
+    </script>
+    <!--[if lt IE 9]>
+      <script src="asset/js/html5shiv.min.js"></script>
+    <![endif]-->
+</head>
+
+<body>
+    <div class="blog-masthead">
+        <div class="container">
+            <nav class="blog-nav">
+                
+                    <a class="blog-nav-item" id="/" href="/">博客</a> 
+                
+                    <a class="blog-nav-item" id="archives.html" href="archives.html">归档</a> 
+                
+                    <a class="blog-nav-item" id="tools.html" href="tools.html">工具</a> 
+                
+                    <a class="blog-nav-item" id="about.html" href="about.html">关于</a> 
+                
+            </nav>
+        </div>
+    </div>
+    
+
+    <script type="text/javascript" src="asset/js/header.html.js"></script> <script type="text/javascript">
+$(function() {
+    $('15230192757930.html').addClass('active');
+});
+</script>
+<div class="container markdown-body" id="content-wrap">
+    <div class="row">
+        <div class="col-sm-9 blog-main">
+            <div class="blog-post">
+                <h2 class="blog-post-title">检索匹配的利器：正则表达式</h2>
+                <p class="blog-post-meta">2018/4/6 &nbsp;posted in  
+                    <a class='category' href='%E6%95%88%E7%8E%87%E6%8F%90%E5%8D%87.html'>效率提升</a>&nbsp;   
+                </p>
+                <div class="content-responsive" id="post-content">
+                    <blockquote>
+<p>正则表达式（Regular Expression，下文简称为RegEx或正则）是一个很棒的利器，它广泛应用于字符串的查找、匹配以及替换等场景，比如检查邮箱、手机号、URL等等。以其简短的表现形式和高效的查找匹配效率总是让人爱不释手。本文旨在帮助大家入门正则并学会解决常见的正则问题，希望能帮到大家。</p>
+</blockquote>
+<span id="more"></span><!-- more -->
+<h2><a id="%E4%B8%80%E5%88%9D%E8%AF%86%E6%AD%A3%E5%88%99" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>一. 初识正则</h2>
+<h3><a id="1%E6%AD%A3%E5%88%99%E7%BB%99%E4%BA%BA%E7%9A%84%E7%9B%B4%E8%A7%82%E5%8D%B0%E8%B1%A1" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>1. 正则给人的直观印象</h3>
+<p>很多人觉得正则表达式很难，一般有两种情况：第一种是确实看的比较深入，这种大神太少了，至少我现在只认识了一个。另外一种情况就是被正则晦涩难懂的表达形式吓到了。本文主要是针对第二种人，我想说的是正则表达式真的不难，最起码学会初级和中级的应用不难。</p>
+<h3><a id="2%E4%B8%80%E4%B8%AA%E5%B8%B8%E8%A7%81%E7%9A%84%E6%AD%A3%E5%88%99%E5%B0%8F%E5%BA%94%E7%94%A8" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>2. 一个常见的正则小应用</h3>
+<p>相信很多人应该碰到过“检测用户输入的手机号或者邮箱是否合法”这种需求。这种例子用正则来做最合适不过了。比如下面的正则就可以判断一个邮箱是否合法。</p>
+<pre><code class="language-plain_text">^([a-zA-Z0-9_\\-\\.]+)@((\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.)|(([a-zA-Z0-9\\-]+\\.)+))([a-zA-Z]{2,4}|[0-9]{1,3})(\\]?)$
+</code></pre>
+<p>我记得学正则之前看到这个表达方式后还是很迷惑的，什么鬼啊，完全看不出和邮箱有什么联系。不过现在看着就感觉很简单了，都是一些基础的正则符号，相信大家看完本文后，再回头看这个表达式会有豁然开朗的感觉。</p>
+<h2><a id="%E4%BA%8C%C2%A0%E8%B5%B0%E8%BF%9B%E6%AD%A3%E5%88%99%E8%A1%A8%E8%BE%BE%E5%BC%8F%E7%9A%84%E4%B8%96%E7%95%8C" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>二. 走进正则表达式的世界</h2>
+<p>上面说了那么多，目的是为了让大家对正则有个初步的概念。下面主要说明正则的基本语法。看完这部分之后，就能很轻松地看懂上面的那个匹配邮箱地址的正则了。</p>
+<h3><a id="1%C2%A0%E5%85%83%E5%AD%97%E7%AC%A6" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>1. 元字符</h3>
+<p>元字符其实就是正则中的保留字符，这些字符在正则表达式中有着自己特殊的含义。就像Java中的class和interface关键字一样，他们不是普通的字符串，有着自己特殊的含义。</p>
+<ul>
+<li>脱字节符：^</li>
+</ul>
+<p>意思：代表一行文本的开头<br />
+用处：当我们想从一行文本的开头处匹配时，那么这个字符是个很好的选择。</p>
+<ul>
+<li>美元符号：$</li>
+</ul>
+<p>意思：代表一行文本文本的结尾<br />
+用处：当我们想匹配到一行文本的结尾时，那么这个字符是个很好的选择。</p>
+<ul>
+<li>单词分界符：\b</li>
+</ul>
+<p>意思：代表一个单词的开始或者结束<br />
+用处：当我们想匹配字符串中的某一个单词时，可以用这个符号匹配单词的开始和结束的位置</p>
+<ul>
+<li>取非符号：^</li>
+</ul>
+<p>意思：用在字符串组（下面会讲到）中，代表“非”的意思。<br />
+用处：这个符号和脱字节符号是同一个字符，只是用在不同的地方表示不同的意思，下面的字符组的例子我们会用到它。</p>
+<ul>
+<li>点号通配符：.</li>
+</ul>
+<p>意思：你没看错，这个小圆点，代指任何一个字符。 （除了换行符）<br />
+用处：当我们对某个字符没有任何要求时，可以用它通配任意一个字符。</p>
+<p>我对元字符的理解就是：正则匹配其实就是规则匹配，正则表达式其实就是一个规则表达式，元字符就是制定了规则，比如<code>.</code>就代表任意一个字符，具体是什么字符不关心。只有这样，才能抽象出一定的规则，实现更灵活和复杂的匹配。</p>
+<h3><a id="2%E9%87%8F%E8%AF%8D%E7%9A%84%E4%B8%89%E4%B8%AA%E5%88%86%E7%B1%BB" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>2. 量词的三个分类</h3>
+<p>上面提到了一些基础的元字符，一般匹配某一个或某一类字符。下面介绍一下三个量词字符‘*’‘+’‘？’。它们用来修饰基本的正则表达式，表示正则的匹配次数。</p>
+<table>
+<thead>
+<tr>
+<th>分类</th>
+<th>匹配次数</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>*</td>
+<td>匹配零次或者多次</td>
+</tr>
+<tr>
+<td>+</td>
+<td>最少匹配一次，可以匹配多次</td>
+</tr>
+<tr>
+<td>?</td>
+<td>匹配零次，或者匹配一次</td>
+</tr>
+</tbody>
+</table>
+<p>比如，一个用来匹配单词的基本的正则表达式：</p>
+<pre><code class="language-plain_text">\b\w\w\b    // 匹配具有两个字母的单词。
+</code></pre>
+<p> 那么，很显然，上面的正则只能匹配只有两个字符的单词，但是我们的目的是匹配所有的单词，那么该怎么搞呢，我们也没法确定这个单词到底有多少个字符。</p>
+<p>这里就会用到量词了，如下：</p>
+<pre><code class="language-plain_text">\b\w\w*\b    //这个正则和上面的那个比，只多了一个字符‘*’意义就完全变了。它表示“有任意多个\w”，这正好符合要求。
+</code></pre>
+<p>上面的例子中多了一个‘*’，意思是，符号‘*’前面的那个字符，出现零次或者多次。</p>
+<p>当然，我们也可以改成下面的写法：</p>
+<pre><code class="language-plain_text">\b\w+\b   // 这个正则和上面的那个表达的意思一样。
+</code></pre>
+<p>为什么可以这样呢，因为“一个单词最少有一个字母”。这里之所以可以这么简单，是因为‘+’最少匹配一次，所以，被这个正则匹配的字符一定最少有一个字母。符合要求。</p>
+<p>然而，这还不够，还有一种情况我们没有考虑。</p>
+<p>假设我们想把下面的HTML代码中的第一个div标签的内容过滤出来，该怎么搞呢</p>
+<pre><code class="language-plain_text">&lt;html&gt;&lt;div&gt;第一个DIV&lt;/div&gt;&lt;div&gt;第二个DIV&lt;/div&gt;&lt;/html&gt;
+</code></pre>
+<p>你可能会想到用：</p>
+<pre><code class="language-plain_text">&lt;div&gt;.*&lt;/div&gt;
+</code></pre>
+<p> 这个其实不行，它匹配的结果是：</p>
+<pre><code class="language-plain_text">&lt;div&gt;第一个DIV&lt;/div&gt;&lt;div&gt;第二个DIV&lt;/div&gt;
+</code></pre>
+<p>这明显不是我们想要的结果。也就是说‘*’可以匹配零个字符和多个字符，但是，当有多种合适的匹配结果时，其总是优先匹配字符最多的结果。</p>
+<p>这就尴尬了。。。</p>
+<p>怎么搞，怎么让‘*’匹配第一个，而不是同时匹配两个呢。</p>
+<p>这就要再学习一个新知识了：</p>
+<p>正则表达式的匹配模式有三种，分别是：贪婪模式（最多匹配模式），勉强模式（最少匹配模式）和占有模式。正则默认使用的是贪婪模式。</p>
+<table>
+<thead>
+<tr>
+<th>分类</th>
+<th>量词</th>
+<th>特性</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>匹配优先量词</td>
+<td>*  +  ?</td>
+<td>尽可能多的匹配</td>
+</tr>
+<tr>
+<td>忽略优先量词</td>
+<td>*?  +?  ??</td>
+<td>尽可能少的匹配</td>
+</tr>
+<tr>
+<td>占有优先量词</td>
+<td>*+  ++  ?+</td>
+<td>类似于匹配优先，但一旦匹配就不会退还，类似于“固化分组”</td>
+</tr>
+</tbody>
+</table>
+<p>通过上面的表格，我们可以知道，可以用‘*’的勉强模式‘*？’就可以达到效果。</p>
+<p> 所以，正确的正则应该是：</p>
+<pre><code class="language-plain_text">&lt;div&gt;.*?&lt;/div&gt;
+</code></pre>
+<p>学会了‘*’的勉强模式，那么‘+’和‘?’也就同理了。 </p>
+<h3><a id="3%E5%AD%97%E7%AC%A6%E7%BB%84" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>3. 字符组</h3>
+<p>字符组是正则中一个很重要的概念。字符组匹配的是单个字符，这个字符可以是字符组中列出的任意一个字符。字符组的表现形式为：[....]。</p>
+<p>当我们想匹配的某一个字符不是固定的，比如，我们想匹配一段文字中所有的数字，也就是说要匹配所有的 0~9 这十个字符。这时我们就需要用到字符组这个概念。</p>
+<p>关于字符组其实很简单，这里举两个小例子。</p>
+<p>记得以前看过一句话“一篇议论文中提到的数字概念越多，就越有说服力”。暂且不去考证这句话的真假。假设我们现在有一篇文章，需要找出文中所有的数字并统计数字的个数。那么我们该怎样用正则过滤出所有的数字呢。<br />
+首先，我们可以这样：</p>
+<pre><code class="language-plain_text">[0123456789]    // 该字符组匹配单个字符，这个字符可以是 0123456789 这十个数字中的任何一个
+</code></pre>
+<p> 也可以简化一下变成这样</p>
+<pre><code class="language-plain_text">[0-9]    //中间的‘-’的意思是‘从x到y所有字符’，该顺序遵循ASCII表的顺序，这里也同样表示 0123456789 这十个数字中的任何一个数字
+</code></pre>
+<p> 当然还有更简化的写法，上面也提到了</p>
+<pre><code class="language-plain_text">\d    //  ‘\d’这个符号代指任意一个数字，范围是：0-9
+</code></pre>
+<p> 再举个例子，还是上面的语境，我们要匹配所有的数字，除了数字‘0’和‘9’，也就是匹配‘0’和‘9’之外的所有数字<br />
+如果你前面的看懂了，那么这个问题就非常简单了</p>
+<pre><code class="language-plain_text">[^09]    //‘^’用在字符组中是“取非”的意思，整个字符组的意思变成了“匹配单个字符，但这个字符不能是字符组中列出的任何一个”。注意：‘^’表示“取非”的意思时，必须放在字符组中字符的最前面
+</code></pre>
+<p> 在来几个例子加深理解</p>
+<pre><code class="language-plain_text">[^a-f]    // 匹配单个字符，但是这个字符不能是‘abcdef’中的任何一个。
+[^\d]    // 匹配单个字符，但是这个字符不能是数字。
+</code></pre>
+<p>字符组当然也有很多常用的快捷字符组：</p>
+<table>
+<thead>
+<tr>
+<th>字符组</th>
+<th>匹配范围</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>\d</td>
+<td>匹配单个字符，这个字符必须是数字</td>
+</tr>
+<tr>
+<td>\D</td>
+<td>匹配单个字符，这个字符不能是数字，等于[^\d]]</td>
+</tr>
+<tr>
+<td>\w</td>
+<td>匹配单个字符，这个字符必须是字母</td>
+</tr>
+<tr>
+<td>\W</td>
+<td>匹配单个字符，这个字符不能是字母，等于[^\w]]</td>
+</tr>
+<tr>
+<td>\s</td>
+<td>匹配单个字符，这个字符是一个空白字符（空格、制表符等等）</td>
+</tr>
+<tr>
+<td>\S</td>
+<td>匹配单个字符，这个字符不能是空白字符，等于[^\s]]</td>
+</tr>
+</tbody>
+</table>
+<h3><a id="4%E7%8E%AF%E8%A7%86" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>4. 环视</h3>
+<p>什么是环视？</p>
+<p>环视就是在匹配字符串的时候，规定字符串的前面或者后面的字符必须符合环视的要求。</p>
+<p>先来整体看一下环视的分类和表现形式：</p>
+<table>
+<thead>
+<tr>
+<th>环视的种类</th>
+<th>符号表示</th>
+<th>具体含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>顺序肯定环视</td>
+<td>(?=…)</td>
+<td>某个字符后面有某个字符</td>
+</tr>
+<tr>
+<td>顺序否定环视</td>
+<td>(?!…)</td>
+<td>某个字符后面没有某个字符</td>
+</tr>
+<tr>
+<td>逆序肯定环视</td>
+<td>(?&lt;=…)</td>
+<td>某个字符前面有某个字符</td>
+</tr>
+<tr>
+<td>逆序否定环视</td>
+<td>(?&lt; !…)</td>
+<td>某个字符前面没有某个字符</td>
+</tr>
+</tbody>
+</table>
+<p>可以看到，环视总共分为四种，并且具有各自的意思和表达方式。我们接下来举个例子来说明一下环视的用法。</p>
+<p>实现数字的三位分割，也就是我们日常见到的金钱的表示方法，总是每三位加一个‘，’。比如余额为 12345678 元，往往被写成 12，345，678 元 。</p>
+<p>这个问题怎么解决呢，这个问题的关键是要找出需要插入‘, ’的位置。</p>
+<p>我们可以总结出一个规律，“从后往前看，都是三个数字一组”，也就是</p>
+<pre><code class="language-plain_text">(\d\d\d)+$   // 三个数字一组
+</code></pre>
+<p>上面这个正则，只需要将所有的 <code>(\d\d\d)+$</code> 替换成  <code>, (\d\d\d)+$</code> 就可以了。</p>
+<p>下面，我再分别针对环视的不同种类，分别举例说明一下具体的用法：</p>
+<h4><a id="1%E9%A1%BA%E5%BA%8F%E8%82%AF%E5%AE%9A%E7%8E%AF%E8%A7%86" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>1.顺序肯定环视</h4>
+<p>比如我们想匹配<code>hellochillax helloxiao</code>里里面的<code>hello</code>，但是有个要求：在<code>hello</code>后面必须有<code>chillax</code>这个字符。</p>
+<p>我们可以这样做：<code>hello(?=chillax)</code></p>
+<h4><a id="2%E9%A1%BA%E5%BA%8F%E5%90%A6%E5%AE%9A%E7%8E%AF%E8%A7%86" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>2.顺序否定环视</h4>
+<p>还是上面的这个字符串<code>hellochillax helloxiao</code>，这次，要求变了：在<code>hello</code>后面不能有<code>chillax</code>这个字符。</p>
+<p>我们可以这样做：<code>hello(?!chillax)</code></p>
+<h4><a id="3%E9%80%86%E5%BA%8F%E8%82%AF%E5%AE%9A%E7%8E%AF%E8%A7%86" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>3.逆序肯定环视</h4>
+<p>比如我们想匹配<code>hellochillax xiaochillax</code>里里面的<code>chillax</code>，但是有个要求：在<code>chillax</code>前面必须有<code>hello</code>这个字符。</p>
+<p>我们可以这样做：<code>(?&lt;=hello)chillax</code></p>
+<h4><a id="4%E9%80%86%E5%BA%8F%E8%82%AF%E5%AE%9A%E7%8E%AF%E8%A7%86" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>4.逆序肯定环视</h4>
+<p>比如我们想匹配<code>hellochillax xiaochillax</code>里里面的<code>chillax</code>，但是有个要求：在<code>chillax</code>前面不能有<code>hello</code>这个字符。</p>
+<p>我们可以这样做：<code>(?&lt;!hello)chillax</code></p>
+<h3><a id="5%E6%8D%95%E8%8E%B7" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>5. 捕获</h3>
+<p>这个功能其实是为了让我们更好地控制正则匹配的字符。有的时候我们为了获取到目标字符串，必须加入一些上下文元素，但是这些上下文元素并不是我们想要的，我们可以通过“捕获”来指出想要的部分，去掉不想要的部分。</p>
+<p>比如，还是上面的那个过滤HTML中div标签的例子，如果我们只想过滤出第一个div标签里的内容，而不想要div标签，该怎么实现呢。</p>
+<p>其实我们可以把想要的字符串对应的正则用括号括起来，就可以通过编程语言的一些函数获取到这个括号里的内容，从而达到除去上下文无用字符的目的。</p>
+<p>待过滤HTML代码：</p>
+<pre><code class="language-plain_text">&lt;html&gt;&lt;div&gt;第一个DIV&lt;/div&gt;&lt;div&gt;第二个DIV&lt;/div&gt;&lt;/html&gt;
+</code></pre>
+<p>过滤出<code>&lt;div&gt;第一个DIV&lt;/div&gt;</code>的正则是：</p>
+<pre><code class="language-plain_text">&lt;div&gt;.*?&lt;/div&gt;   //上面的例子，应该能看懂了
+</code></pre>
+<p>过滤出<code>第一个DIV</code>的正则是：</p>
+<pre><code class="language-plain_text">&lt;div&gt;(.*?)&lt;/div&gt; //比上面多了一对括号。我们可以通过直接获取括号里的内容来直接得到想要的字符串‘第一个DIV”
+</code></pre>
+<p>捕获的思路是通过添加括号，然后单独取某个括号的匹配内容，来实现更灵活的匹配策略。</p>
+<p>具体实现每种语言都不一样，遇到这种场景首先想到用捕获，然后查一下该语言的正则是怎么使用捕获的即可。</p>
+<p>### 6. 模式修饰符（modifier）</p>
+<p>在某些时候，我们需要对正则进行一些设定，用来满足某些特殊需求。</p>
+<p>先来看一下常用的模式修饰符：</p>
+<table>
+<thead>
+<tr>
+<th>modifier</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>(?i…)</td>
+<td>不区分大小写</td>
+</tr>
+<tr>
+<td>(?-i…)</td>
+<td>取消不区分大小写</td>
+</tr>
+<tr>
+<td>(?s…)</td>
+<td>点号通配模式</td>
+</tr>
+<tr>
+<td>(?m…)</td>
+<td>增强的行锚点模式</td>
+</tr>
+</tbody>
+</table>
+<p>这一块要一个一个解释了：</p>
+<p><strong>1. (?i…)   不区分大小写</strong></p>
+<p>有的时候我们想匹配某些字母，但是不区分大小写，比如我们想匹配字母‘ABCDabcd’，</p>
+<p>最直观的，我们可以这样写：</p>
+<pre><code class="language-plain_text">[abcdABCD]   //最直白的正则。。
+</code></pre>
+<p> 也可以这样：</p>
+<pre><code class="language-plain_text">[a-dA-D]    //使用‘-’，可以简化连续的字符的书写，比上面那个稍好。
+</code></pre>
+<p> 也可以使用模式修饰符：</p>
+<pre><code class="language-plain_text">(?i:[abcd])  //在(?i:)里面的字符，不区分大小写，全部匹配
+</code></pre>
+<p>** 2. (?-i…)   取消不区分大小写**</p>
+<p>这个更简单，就是在上面那个符号内范围内，如果你想局部区分大小写，可以用这个。不举例了~</p>
+<p><strong>3. (?s…) 点号通配模式</strong></p>
+<p>这个有必要说一下，本文刚开始就介绍了一个特别有用的元字符‘.’，上面说它可以指代任何一个字符，除了换行符。那么，如果你想用“.*”来匹配一大段文字的话，里面有很多换行符，实现起来就很困难了。</p>
+<p>所以，我们可以指定“.”暂时可以匹配换行符，所以可以写成：</p>
+<pre><code class="language-plain_text">(?s:.*)  //在这个括号内，显式指定'.'匹配任何字符，包括换行符。
+</code></pre>
+<p>** 4. (?m…)   增强的行锚点模式（也成为多行文本模式）**</p>
+<p>增强的行锚点可以改变‘^’和‘$’的匹配效果。正常情况下，‘^’和‘$’不会受到文本中换行符的干扰，也就是说如果一段文字中有多个换行符，那么正常情况下‘^’和‘$’分别匹配这段文字的开头和结尾。</p>
+<p>但是如果开启了增强的行锚点模式，‘^’和‘$’就会分别匹配这段文字的第一个换行符之前的文字的开头和结尾。</p>
+<p>例如：</p>
+<pre><code class="language-plain_text">My Life Getting Better \n NO1
+</code></pre>
+<p> 然后有：</p>
+<pre><code class="language-plain_text">^.*$  //匹配结果为：My Life Getting Better \n NO1 
+(?m:^.*$)  //匹配结果为：My Life Getting Better
+</code></pre>
+<p> 可以看出明显的不同。。</p>
+<h2><a id="%E4%B8%89%E6%8A%8A%E6%AD%A3%E5%88%99%E5%BA%94%E7%94%A8%E4%BA%8E%E6%97%A5%E5%B8%B8%E5%B7%A5%E4%BD%9C%E4%B8%AD" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>三. 把正则应用于日常工作中</h2>
+<p> <br />
+不仅是在代码里可以用到正则，平时工作与生活也可以用得到。</p>
+<p>可以用正则写一写小工具来提高效率，比如查log，或者查文本，可以用正则进行模糊搜索、排版等等。</p>
+<p>举个例子，使用 git 时，经常需要 cherry-pick 许多个 commit：</p>
+<pre><code class="language-plain_text">commit 64a70be5205848bb89f11df9555f10f0bb118b62 (HEAD -&gt; master)
+Author: xxx &lt;xxx@tencent.com&gt;
+Date:   Fri Mar 1 17:36:26 2019 +0800
+
+    xxx默认示例
+
+commit 36f4a80471dbd9c923f762919c541f0f4f921760
+Author: xxx &lt;xxx@gmail.com&gt;
+Date:   Fri Mar 1 17:33:02 2019 +0800
+
+    Update README.md
+
+commit 0fa181462d932e8ff5ccc94f805423e6d41bed46
+Author: xxx &lt;xxx@gmail.com&gt;
+Date:   Fri Mar 1 17:31:53 2019 +0800
+
+    Initial commit
+</code></pre>
+<p>怎么提取里面的 commit id 呢，用正则就很简单，只需要扫一下这个文本，提取出来就好。说实话刚开始我是手动一个一个的拷贝出来的，因为一般也就十几个 commit，手动拷贝也很快，但是直到遇到了一次有几十个 commit 的，还是写了个工具，把文本写入文件，然后用正则几毫秒就可以过滤出来。</p>
+<h2><a id="%E5%9B%9B%E9%9C%80%E8%A6%81%E5%AD%A6%E4%B9%A0%E7%9A%84%E8%BF%98%E6%9C%89%E5%BE%88%E5%A4%9A" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>四. 需要学习的还有很多</h2>
+<h3><a id="1%E6%AD%A3%E5%88%99%E8%A1%A8%E8%BE%BE%E5%BC%8F%E7%9A%84%E6%95%88%E7%8E%87" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>1. 正则表达式的效率</h3>
+<p>没错，正则表达式也是讲效率的，同一个目标字符串，同一个匹配要求，不同的正则表达式其效率可能差别很大。所以，作为一名合格的程序员，不仅要实现功能，还要时刻考虑效率的问题。</p>
+<h3><a id="2%C2%A0%E6%AD%A3%E5%88%99%E7%9A%84%E6%B5%81%E6%B4%BE%E5%92%8C%E6%90%9C%E7%B4%A2%E5%BC%95%E6%93%8E" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>2. 正则的流派和搜索引擎</h3>
+<p>正则是有很多流派的，不同的流派之间可能会有略微的不同，但是基本大同小异。</p>
+<p>正则的驱动引擎分为两种：DFA 和 NFA。分别是确定型有限自动机和非确定型有限自动机，DFA的特点是“文本主导”，NFA的特点是“表达式主导”。</p>
+<p>不同的编程语言可能属于不同的流派，也可能使用不同的驱动引擎，这会导致其在对正则的支持上会略有不同。比如 NFA 比 DFA 支持的正则特性要多。</p>
+<p>当然，这些都可以先不用考虑，因为一般体会不到这种差别。。遇到具体语言时，Google 查一下就好。</p>
+<h3><a id="3%C2%A0%E5%85%83%E5%AD%97%E7%AC%A6%E8%BD%AC%E4%B9%89" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>3. 元字符转义</h3>
+<p>上面提到了很多正则里的元字符，它们出现在正则表达式中会有着自己特殊的含义。那么，在正则匹配过程中，如果我们就是想匹配这些字符呢。那就需要转义了，转义的表示方式是在被转义的元字符前面加一个反斜杠。</p>
+<p>比如我们想匹配下面的字符串：</p>
+<pre><code class="language-plain_text">[私たち]
+</code></pre>
+<p>用下面的正则可以匹配么</p>
+<pre><code class="language-plain_text">[私たち]    //这个正则的意思是：匹配单个代码点，这个代码点可以是‘私’、‘た’、‘ち’中的任意一个
+</code></pre>
+<p>当然不行。。 </p>
+<p>这里我们需要对“[”和“]”进行转义，变成这样</p>
+<pre><code class="language-plain_text">\[私たち\]  //这里使用‘\’对元字符进行转义，使其变成一个普通的字符
+</code></pre>
+<p> 当然，有些语言中，‘\’本身也需要转义，比如在Java中就需要下面这种表示：</p>
+<pre><code class="language-plain_text">\\[私たち\\]
+</code></pre>
+<p>其他的元字符同理~~ </p>
+<h3><a id="4%E6%AD%A3%E5%88%99%E7%9A%84%E5%AD%97%E7%AC%A6%E7%BC%96%E7%A0%81%E9%97%AE%E9%A2%98" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>4. 正则的字符编码问题</h3>
+<p>上面多次提到，一个正则符号匹配单个或者多个“字符”，这个“字符”需要着重解释一下。</p>
+<p>编码字符集有很多，比如Unicode、GBK、ASCII等等。。编程中最常用的编码字符集是Unicode。最常使用的编码格式是UTF-8 。UTF-8支持的字符范围和Unicode一样广泛，并且能够区分Unicode字符和ASCII字符，变长编码的方式也使得其存储效率较高，因此在编程中广泛被使用。</p>
+<p>字符的存储方式是二进制编码，比如一个ASCII字符就占一个字节的空间，范围是0~127 。那么，每一个字符，在Unicode字符集中就对应着一个十六进制数字。我们把这个数字称为“代码点”（代码点指的是该字符在Unicode对应表中对应的数值）。我们需要注意的是，正则匹配时，匹配的“单个字符”其实并不准确，准确得说，应该是“单个代码点”。</p>
+<p>绝大多数字符都对应一个代码点，有少数字符对应多个代码点。当我们用“.”去匹配这些字符时，会得不到我们想要的结果。</p>
+<p>比如一个汉字对应一个代码点，所以我们可以用“.”去匹配单个汉字。</p>
+<p>Unicode中有很多组合字符，这些字符看上去像是一个代码点，但是其实需要用多个代码点去表示。</p>
+<p>比如，有兴趣的可以试一下用“.”去匹配下面这些字符：</p>
+<pre><code class="language-plain_text">กิิ ก้้ ก็็ ก็็ กิิ ก้้ ก็็ กิิ ก้้ กิิ ก้้ ก็็ ก็็ กิิ ก้้ ก็็ กิิ ก้้      //这里的每一个字符都对应着两个代码点
+</code></pre>
+<p>PS：说这些东西的目的是能够对编码有一定的了解。实际开发中基本用不到。不过对字符编码还是需要多了解一下，很重要~</p>
+<h2><a id="%E4%BA%94%E6%80%BB%E7%BB%93" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>五. 总结</h2>
+<p>精通正则表达式不仅要学会语法，更要在实际问题中不断练习。只有不断思考，不断尝试，才能将正则用在刀刃上，切切实实提升开发效率，达到应有的效果。</p>
+<p>最后附上两个正则的教程，一个比较基础，另一个则是比较权威的教程。大家根据自己的需要选择吧。希望对大家能有一定的帮助。谢谢。</p>
+<p><strong>[正则表达式30分钟入门教程]</strong></p>
+<p><strong>[精通正则表达式（第三版）]</strong></p>
+<p>关注公众号，回复「正则」获取下载链接。</p>
+
+                </div>
+                <div class="content-responsive post-footer">
+                    <blockquote>
+                        转载请注明出处：<a href="https://wxdut.com/15230192757930.html">检索匹配的利器：正则表达式 - 专业点</a>
+                        <br><br>欢迎关注我的公众号<br><br>
+                        <img src="media/15196482316286/扫码_搜索联合传播样式-标准色版.png">
+                    </blockquote>
+                    <!-- <blockquote>我的博客会及时同步到腾讯云+社区，邀请大家一同入驻：
+                        <br><a href="https://cloud.tencent.com/developer/support-plan?invite_code=mqbbongvgxmp" target="__blank">https://cloud.tencent.com/developer/support-plan?invite_code=mqbbongvgxmp</a>
+                    </blockquote> -->
+                </div>
+            </div>
+            <!-- /.blog-post -->
+        </div>
+        <!-- /.blog-main -->
+        <!-- slider start --> <div class="col-sm-3 blog-sidebar">
+    <!-- <div class="sidebar-module">
+        <h4>科学上网</h4>
+        <a href="http://order.yizhihongxing2017.com/aff.php?aff=9247" target="_blank">
+            <img src="https://cdn.wxdut.com/asset/img/yzhx_232_215.jpg" >
+        </a>
+    </div> -->
+    <div class="sidebar-module">
+        <h4>分类</h4>
+        
+            <a href="%E8%B7%A8%E5%B9%B3%E5%8F%B0.html">跨平台&nbsp;(4)</a><br>
+        
+            <a href="iOS.html">iOS&nbsp;(14)</a><br>
+        
+            <a href="Android.html">Android&nbsp;(2)</a><br>
+        
+            <a href="%E6%B8%B2%E6%9F%93.html">渲染&nbsp;(9)</a><br>
+        
+            <a href="%E9%9F%B3%E8%A7%86%E9%A2%91.html">音视频&nbsp;(2)</a><br>
+        
+            <a href="%E6%95%88%E7%8E%87%E6%8F%90%E5%8D%87.html">效率提升&nbsp;(4)</a><br>
+        
+            <a href="%E5%85%B6%E4%BB%96.html">其他&nbsp;(1)</a><br>
+        
+    </div>
+    <div class="sidebar-module" id="sidebar-recent-article">
+        <h4>最近文章</h4>  
+         <a href="16887976127793.html">Android so 动态库相关知识</a>
+            <br />   
+         <a href="16886092802260.html">浅谈大前端跨端方案</a>
+            <br />   
+         <a href="16826065078832.html">如何把家里宽带配置为云服务器</a>
+            <br />   
+         <a href="16788697947776.html">iOS 内存分析 - Allocations</a>
+            <br />   
+         <a href="16782743400583.html">XCode Instruments 使用</a>
+            <br />   
+         <a href="16749127493537.html">LLDB - 源码调试工具</a>
+            <br />   
+         <a href="16748972547111.html">浅谈 C/C++ 编译流程和常见编译器</a>
+            <br />   
+         <a href="16729723756811.html">iOS framework 静态库相关知识</a>
+            <br />   
+         <a href="16705731655475.html">CMake 实用指南</a>
+            <br />   
+         <a href="16680671661314.html">一分钟下载最新 XCode</a>
+            <br />   
+          
+          
+          
+          
+          
+          
+          
+          
+          
+         
+    </div>
+    <div class="sidebar-module">
+        <h4>推荐</h4>
+        <a href="https://wxdut.com/world">
+            <img src="https://qiniu.wxdut.com/mweb/16645116745782.jpg">
+        </a>
+    </div>
+    <div class="sidebar-module sidebar-toc" id="sidebar-toc" style="display: none;">
+        <h4>目录</h4>
+        <div id="toc" style="margin-left: 0em;"></div>
+    </div>
+    <div class="sidebar-module">
+        <h4>公众号推荐</h4>
+        欢迎关注我的公众号<br>一起愉快的交流。<br><br>
+
+        <img src="media/15196482316286/扫码_搜索联合传播样式-白色版.png">
+    </div>
+</div>
+<!-- /.blog-sidebar -->
+</div>
+<!-- /.row -->
+</div>
+<!-- /.container --> <link rel="stylesheet" href="asset/gitalk/gitalk.css">
+<script src="asset/gitalk/gitalk.min.js"></script>
+<!-- gitalk -->
+<div class="container markdown-body" id="gitalk-container" ></div>
+
+<!-- footer -->
+<footer class="blog-footer">
+    <p>
+        ©2022 <a target="_blank" href="http://wxdut.com">Wxdut.com</a>. All rights reserved.
+    </p>
+    <p>
+        <a href="https://beian.miit.gov.cn/">粤ICP备17041161号-1</a>
+    </p>
+    <p>
+        <a href="#">Back to top</a>
+    </p>
+</footer>
+<!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
+<script src="asset/js/ie10-viewport-bug-workaround.js"></script>
+<script type="text/javascript" src="asset/js/footer.html.js"></script>
+<!-- MWeb 会把下面这一行注释换成 section-chart-support.html 的内容，我只能说操作太骚。。 -->
+
+
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">MathJax.Hub.Config({TeX: { equationNumbers: { autoNumber: "AMS" } }});</script>
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="asset/prism.js"></script>
+
+  
+</body>
+
+</html>

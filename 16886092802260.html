@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" sizes="32x32" href="asset/img/favicon.png" />
+    <link rel="shortcut icon" href="asset/img/favicon.png" type="image/png" />
+    <link href="atom.xml" rel="alternate" title="专业点" type="application/atom+xml">
+    <title>
+         浅谈大前端跨端方案 - 专业点 
+    </title>
+    <script src="asset/js/jquery-3.3.1.min.js"></script>
+    <script src="asset/js/popper.min.js"></script>
+    <script src="asset/js/darkreader.min.js"></script>
+    <link href="asset/css/mweb-github.css" rel="stylesheet" type="text/css">
+    <link href="asset/css/style.css" rel="stylesheet" type="text/css">
+    <script src="asset/highlightjs/highlight.pack.js"></script>
+    <link href="asset/highlightjs/styles/github.css" media="screen, projection" rel="stylesheet" type="text/css">
+    <link href="asset/bootstrap-4.2.1-dist/css/bootstrap.min.css" rel="stylesheet" type="text/css">
+    <script src="asset/bootstrap-4.2.1-dist/js/bootstrap.min.js"></script>
+    <link href="asset/bootstrap-select-1.13.2/css/bootstrap-select.min.css" rel="stylesheet" type="text/css">
+    <script src="asset/bootstrap-select-1.13.2/js/bootstrap-select.min.js"></script>
+
+    <script>
+        hljs.initHighlightingOnLoad();
+        DarkReader.enable();
+    </script>
+    <!--[if lt IE 9]>
+      <script src="asset/js/html5shiv.min.js"></script>
+    <![endif]-->
+</head>
+
+<body>
+    <div class="blog-masthead">
+        <div class="container">
+            <nav class="blog-nav">
+                
+                    <a class="blog-nav-item" id="/" href="/">博客</a> 
+                
+                    <a class="blog-nav-item" id="archives.html" href="archives.html">归档</a> 
+                
+                    <a class="blog-nav-item" id="tools.html" href="tools.html">工具</a> 
+                
+                    <a class="blog-nav-item" id="about.html" href="about.html">关于</a> 
+                
+            </nav>
+        </div>
+    </div>
+    
+
+    <script type="text/javascript" src="asset/js/header.html.js"></script> <script type="text/javascript">
+$(function() {
+    $('16886092802260.html').addClass('active');
+});
+</script>
+<div class="container markdown-body" id="content-wrap">
+    <div class="row">
+        <div class="col-sm-9 blog-main">
+            <div class="blog-post">
+                <h2 class="blog-post-title">浅谈大前端跨端方案</h2>
+                <p class="blog-post-meta">2023/7/6 &nbsp;posted in  
+                    <a class='category' href='%E8%B7%A8%E5%B9%B3%E5%8F%B0.html'>跨平台</a>&nbsp;   
+                </p>
+                <div class="content-responsive" id="post-content">
+                    <p>行业里涌现了比较多有名的跨端框架，可以实现一份代码双端甚至多端运行。本文来介绍下行业内主流跨端方案的分类、优劣势、原理等等。</p>
+<span id="more"></span><!-- more -->
+<h2><a id="%E8%83%8C%E6%99%AF" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>背景</h2>
+<p>在客户端领域我们的 APP 一直需要开发 Android 和 iOS 两个平台，工作量 double，bug 数量也 double，相对于前端网页的一份代码多端运行简直效率低下。</p>
+<p>为了提效，行业里涌现了比较多有名的框架，可以实现一份代码双端甚至多端运行。比较有名的有：React Native、Weex、Flutter、uniapp、小程序。这些跨端方案各有千秋，但是从分层设计上来讲都是类似的。主要有两层：DSL语法层+渲染层，不管方案怎么演变，这个总是不变的。（为了省时间就先不画图了，纯文字描述。）</p>
+<p>在实现跨端之前，网页已经是跨端的，甚至可以说是全平台，只要有浏览器即可。但是 Web 网页主要有两个问题无法替代原生客户端：性能、调用客户端能力。先说性能方面，浏览器在手机端相较于原生应用占用内存过高，响应慢，稳定性差。另外在能力方面无法完全的利用强大的设备硬件能力。</p>
+<p>既然浏览器存在硬伤，能否进行优化呢。答案是可以的。</p>
+<h2><a id="%E6%96%B9%E6%A1%88%E5%88%86%E7%B1%BB" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>方案分类</h2>
+<p>从分层的角度去看，业界主流方案从DSL语法层+渲染层做了各种优化。但主要还是替换问题众多的 Webview。</p>
+<h3><a id="js-webview" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>JS + Webview</h3>
+<p>这种方案是使用客户端提供的 Webview 组件，类似于 H5 方案。微信小程序就是用的这种方案，虽然做了众多优化，但是说到底还是用的 Webview，存在稳定性、性能等问题。</p>
+<p>不过目前小程序也放弃了 Webview，推出了 <a href="https://www.zhihu.com/question/546709238">Skyline</a> 方案。将渲染层替换为 Flutter，可以说是小程序又往前发展了一大步。</p>
+<p><img src="media/16886092802260/16886495352052.jpg" alt="" /></p>
+<h3><a id="js-uiview" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>JS + UIView</h3>
+<p>一些主流框架在渲染层使用系统原生 View 渲染。比如 React Native 和 Weex 就是这种。</p>
+<p>这种方案相对于其他方案还是比较坑的。主要有两个问题：多平台不一致、难扩展。其次，相对于其他方案直接交给系统渲染的方案，效率也更低。</p>
+<p>具体说就是，既然是原生 View 去渲染，那就必然存在平台不一致的问题，比如安卓的 EditText 和 iOS 的 UITextField 的 UI 效果就是差别很大的。再者就是依赖于系统组件反而会受限制，比如无法实现系统组件能力之外的效果。</p>
+<p>Airbnb 之前就抛弃了 RN 方案，<a href="https://www.techug.com/post/airbnb-sunsetting-react-native/">https://www.techug.com/post/airbnb-sunsetting-react-native/</a></p>
+<p><img src="media/16886092802260/diagram_ios-android-views.png" alt="diagram_ios-android-views" /></p>
+<h3><a id="js-nativerender" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>JS + NativeRender</h3>
+<p>上面提到的 RN 使用客户端原生 View 会有一些硬伤，所以一些方案选择了使用 NativeRender 来渲染，比如使用 Canvas、Texture、Skia 等等。</p>
+<p>这些框架的渲染性能和自由度是最好的。微信小游戏就是使用的这种方案。</p>
+<p><img src="media/16886092802260/16886492838931.jpg" alt="" /></p>
+<p>语言层面使用 JS 还有一个好处就是可以实现动态渲染。通过动态下发 JS 包然后由 JS Engine 执行，避免客户端频繁发包的问题。</p>
+<h3><a id="dsl-nativerender" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>DSL + NativeRender</h3>
+<p>DSL（Domain-Specific Language）全称领域专用语言。就是一种特定领域的编程语言。Flutter 就是这种方案，语言使用 Dart，渲染层自己做 Layout、Paint、Draw。算是目前比较好的一个方案，Flutter 在国内的应用目前也非常多，咸鱼、微信也大量用到了 Flutter。</p>
+<p><img src="media/16886092802260/16886498751519.jpg" alt="" /></p>
+<p>不过 DSL 的方案有个缺点就是适配 Web 比较痛苦，毕竟不是 JS 那样天生就是为 Web 而生。</p>
+<h2><a id="%E6%9C%80%E5%90%8E" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>最后</h2>
+<p>跨端渲染方案发展到今天已经有比较多方案了，不过万变不离其宗，其核心思路都是类似的。了解核心思路，便于有内到外的去理解新框架，以及更好的在业务中选择最合适的方案。</p>
+
+                </div>
+                <div class="content-responsive post-footer">
+                    <blockquote>
+                        转载请注明出处：<a href="https://wxdut.com/16886092802260.html">浅谈大前端跨端方案 - 专业点</a>
+                        <br><br>欢迎关注我的公众号<br><br>
+                        <img src="media/15196482316286/扫码_搜索联合传播样式-标准色版.png">
+                    </blockquote>
+                    <!-- <blockquote>我的博客会及时同步到腾讯云+社区，邀请大家一同入驻：
+                        <br><a href="https://cloud.tencent.com/developer/support-plan?invite_code=mqbbongvgxmp" target="__blank">https://cloud.tencent.com/developer/support-plan?invite_code=mqbbongvgxmp</a>
+                    </blockquote> -->
+                </div>
+            </div>
+            <!-- /.blog-post -->
+        </div>
+        <!-- /.blog-main -->
+        <!-- slider start --> <div class="col-sm-3 blog-sidebar">
+    <!-- <div class="sidebar-module">
+        <h4>科学上网</h4>
+        <a href="http://order.yizhihongxing2017.com/aff.php?aff=9247" target="_blank">
+            <img src="https://cdn.wxdut.com/asset/img/yzhx_232_215.jpg" >
+        </a>
+    </div> -->
+    <div class="sidebar-module">
+        <h4>分类</h4>
+        
+            <a href="%E8%B7%A8%E5%B9%B3%E5%8F%B0.html">跨平台&nbsp;(4)</a><br>
+        
+            <a href="iOS.html">iOS&nbsp;(14)</a><br>
+        
+            <a href="Android.html">Android&nbsp;(2)</a><br>
+        
+            <a href="%E6%B8%B2%E6%9F%93.html">渲染&nbsp;(9)</a><br>
+        
+            <a href="%E9%9F%B3%E8%A7%86%E9%A2%91.html">音视频&nbsp;(2)</a><br>
+        
+            <a href="%E6%95%88%E7%8E%87%E6%8F%90%E5%8D%87.html">效率提升&nbsp;(4)</a><br>
+        
+            <a href="%E5%85%B6%E4%BB%96.html">其他&nbsp;(1)</a><br>
+        
+    </div>
+    <div class="sidebar-module" id="sidebar-recent-article">
+        <h4>最近文章</h4>  
+         <a href="16887976127793.html">Android so 动态库相关知识</a>
+            <br />   
+         <a href="16886092802260.html">浅谈大前端跨端方案</a>
+            <br />   
+         <a href="16826065078832.html">如何把家里宽带配置为云服务器</a>
+            <br />   
+         <a href="16788697947776.html">iOS 内存分析 - Allocations</a>
+            <br />   
+         <a href="16782743400583.html">XCode Instruments 使用</a>
+            <br />   
+         <a href="16749127493537.html">LLDB - 源码调试工具</a>
+            <br />   
+         <a href="16748972547111.html">浅谈 C/C++ 编译流程和常见编译器</a>
+            <br />   
+         <a href="16729723756811.html">iOS framework 静态库相关知识</a>
+            <br />   
+         <a href="16705731655475.html">CMake 实用指南</a>
+            <br />   
+         <a href="16680671661314.html">一分钟下载最新 XCode</a>
+            <br />   
+          
+          
+          
+          
+          
+          
+          
+          
+          
+         
+    </div>
+    <div class="sidebar-module">
+        <h4>推荐</h4>
+        <a href="https://wxdut.com/world">
+            <img src="https://qiniu.wxdut.com/mweb/16645116745782.jpg">
+        </a>
+    </div>
+    <div class="sidebar-module sidebar-toc" id="sidebar-toc" style="display: none;">
+        <h4>目录</h4>
+        <div id="toc" style="margin-left: 0em;"></div>
+    </div>
+    <div class="sidebar-module">
+        <h4>公众号推荐</h4>
+        欢迎关注我的公众号<br>一起愉快的交流。<br><br>
+
+        <img src="media/15196482316286/扫码_搜索联合传播样式-白色版.png">
+    </div>
+</div>
+<!-- /.blog-sidebar -->
+</div>
+<!-- /.row -->
+</div>
+<!-- /.container --> <link rel="stylesheet" href="asset/gitalk/gitalk.css">
+<script src="asset/gitalk/gitalk.min.js"></script>
+<!-- gitalk -->
+<div class="container markdown-body" id="gitalk-container" ></div>
+
+<!-- footer -->
+<footer class="blog-footer">
+    <p>
+        ©2022 <a target="_blank" href="http://wxdut.com">Wxdut.com</a>. All rights reserved.
+    </p>
+    <p>
+        <a href="https://beian.miit.gov.cn/">粤ICP备17041161号-1</a>
+    </p>
+    <p>
+        <a href="#">Back to top</a>
+    </p>
+</footer>
+<!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
+<script src="asset/js/ie10-viewport-bug-workaround.js"></script>
+<script type="text/javascript" src="asset/js/footer.html.js"></script>
+<!-- MWeb 会把下面这一行注释换成 section-chart-support.html 的内容，我只能说操作太骚。。 -->
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+</body>
+
+</html>

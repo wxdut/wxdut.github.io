@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" sizes="32x32" href="asset/img/favicon.png" />
+    <link rel="shortcut icon" href="asset/img/favicon.png" type="image/png" />
+    <link href="atom.xml" rel="alternate" title="专业点" type="application/atom+xml">
+    <title>
+         GLSL-运算符和表达式 - 专业点 
+    </title>
+    <script src="asset/js/jquery-3.3.1.min.js"></script>
+    <script src="asset/js/popper.min.js"></script>
+    <script src="asset/js/darkreader.min.js"></script>
+    <link href="asset/css/mweb-github.css" rel="stylesheet" type="text/css">
+    <link href="asset/css/style.css" rel="stylesheet" type="text/css">
+    <script src="asset/highlightjs/highlight.pack.js"></script>
+    <link href="asset/highlightjs/styles/github.css" media="screen, projection" rel="stylesheet" type="text/css">
+    <link href="asset/bootstrap-4.2.1-dist/css/bootstrap.min.css" rel="stylesheet" type="text/css">
+    <script src="asset/bootstrap-4.2.1-dist/js/bootstrap.min.js"></script>
+    <link href="asset/bootstrap-select-1.13.2/css/bootstrap-select.min.css" rel="stylesheet" type="text/css">
+    <script src="asset/bootstrap-select-1.13.2/js/bootstrap-select.min.js"></script>
+
+    <script>
+        hljs.initHighlightingOnLoad();
+        DarkReader.enable();
+    </script>
+    <!--[if lt IE 9]>
+      <script src="asset/js/html5shiv.min.js"></script>
+    <![endif]-->
+</head>
+
+<body>
+    <div class="blog-masthead">
+        <div class="container">
+            <nav class="blog-nav">
+                
+                    <a class="blog-nav-item" id="/" href="/">博客</a> 
+                
+                    <a class="blog-nav-item" id="archives.html" href="archives.html">归档</a> 
+                
+                    <a class="blog-nav-item" id="tools.html" href="tools.html">工具</a> 
+                
+                    <a class="blog-nav-item" id="about.html" href="about.html">关于</a> 
+                
+            </nav>
+        </div>
+    </div>
+    
+
+    <script type="text/javascript" src="asset/js/header.html.js"></script> <script type="text/javascript">
+$(function() {
+    $('15271716271032.html').addClass('active');
+});
+</script>
+<div class="container markdown-body" id="content-wrap">
+    <div class="row">
+        <div class="col-sm-9 blog-main">
+            <div class="blog-post">
+                <h2 class="blog-post-title">GLSL-运算符和表达式</h2>
+                <p class="blog-post-meta">2018/5/24 &nbsp;posted in  
+                    <a class='category' href='%E6%B8%B2%E6%9F%93.html'>渲染</a>&nbsp;   
+                </p>
+                <div class="content-responsive" id="post-content">
+                    <blockquote>
+<p>GLSL基本的运算符和表达式使用方法。</p>
+</blockquote>
+<span id="more"></span><!-- more -->
+<h3><a id="%E8%BF%90%E7%AE%97%E7%AC%A6" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>运算符</h3>
+<table>
+<thead>
+<tr>
+<th>优先级</th>
+<th>运算符说明</th>
+<th>运算符</th>
+<th>结合性</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>括号</td>
+<td>( )</td>
+<td>无</td>
+</tr>
+<tr>
+<td>2</td>
+<td>数组下标<br>函数调用、构造函数<br>变量选择器<br>后置++、后置--</td>
+<td>[] () . ++ --</td>
+<td>从左往右</td>
+</tr>
+<tr>
+<td>3</td>
+<td>前置++、前置--<br>一元运算符</td>
+<td>++ -- + - ~ !</td>
+<td>从右往左</td>
+</tr>
+<tr>
+<td>4</td>
+<td>乘除法</td>
+<td>* / %</td>
+<td>从左往右</td>
+</tr>
+<tr>
+<td>5</td>
+<td>加减法</td>
+<td>+ -</td>
+<td>从左往右</td>
+</tr>
+<tr>
+<td>6</td>
+<td>位操作</td>
+<td>&lt;&lt; &gt;&gt;</td>
+<td>从左往右</td>
+</tr>
+<tr>
+<td>7</td>
+<td>大小关系</td>
+<td>&gt; &gt;= &lt; &lt;=</td>
+<td>从左往右</td>
+</tr>
+<tr>
+<td>8</td>
+<td>相等性</td>
+<td>= !=</td>
+<td>从左往右</td>
+</tr>
+<tr>
+<td>9</td>
+<td>位操作 与</td>
+<td>&amp;</td>
+<td>从左往右</td>
+</tr>
+<tr>
+<td>10</td>
+<td>位操作异或</td>
+<td>^</td>
+<td>从左往右</td>
+</tr>
+<tr>
+<td>11</td>
+<td>位操作 或</td>
+<td>|</td>
+<td>从左往右</td>
+</tr>
+<tr>
+<td>12</td>
+<td>逻辑与</td>
+<td>&amp;&amp;</td>
+<td>从左往右</td>
+</tr>
+<tr>
+<td>13</td>
+<td>逻辑异或</td>
+<td>^^</td>
+<td>从左往右</td>
+</tr>
+<tr>
+<td>14</td>
+<td>逻辑或</td>
+<td>|</td>
+<td></td>
+</tr>
+<tr>
+<td>15</td>
+<td>选择</td>
+<td>？：</td>
+<td>从右往左</td>
+</tr>
+<tr>
+<td>16</td>
+<td>赋值</td>
+<td>= += -=<br>*= /= %=<br>&lt;&lt;= &gt;&gt;=<br>&amp;= ^= |=</td>
+<td>从右往左</td>
+</tr>
+<tr>
+<td>17</td>
+<td>序列</td>
+<td>,</td>
+<td>从左往右</td>
+</tr>
+</tbody>
+</table>
+<p>GLSL中没有取地址运算符，也没有类转换符。</p>
+<h3><a id="%E6%95%B0%E7%BB%84%E4%B8%8B%E6%A0%87" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>数组下标</h3>
+<p>GLSL中只能通过数组的下标来操作其中的元素。例如：</p>
+<pre><code class="language-plain_text">diffuseColor += lightIntensity[3] * NdotL;
+</code></pre>
+<h3><a id="%E6%9E%84%E9%80%A0%E5%87%BD%E6%95%B0" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>构造函数</h3>
+<p>GLSL中的构造函数和C++没有什么不同，唯一的区别就是构造函数传递的参数必须要全部使用，未用到的参数不要写到构造函数的参数列表中。</p>
+<h4><a id="%E6%A0%87%E9%87%8F%E7%9A%84%E6%9E%84%E9%80%A0%E5%87%BD%E6%95%B0%E5%92%8C%E7%B1%BB%E5%9E%8B%E8%BD%AC%E6%8D%A2" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>标量的构造函数和类型转换</h4>
+<pre><code class="language-plain_text">int(bool) // converts a Boolean value to an int
+int(float) // converts a float value to an int
+float(bool) // converts a Boolean value to a float
+float(int) // converts an integer value to a float
+bool(float) // converts a float value to a Boolean
+bool(int) // converts an integer value to a Boolean
+</code></pre>
+<p>我们可以通过标量的构造函数来实现类型的转换。比如*int(bool)*把bool类型转成int类型。</p>
+<p>这里简单说下转换后数值的变化：<br />
+float--&gt;int : 只取float的整数部分，丢弃分数部分。<br />
+int、float--&gt;bool : 非零转成true，零转成false。<br />
+bool--&gt;int、float : true转成1或1.0，false转成0或0.0。</p>
+<p>类似下面这种也可以，不过没啥卵用。</p>
+<pre><code class="language-plain_text">float(float)
+</code></pre>
+<p>标量的构造函数也可以传入非标量，这种会取非标量的第一个元素赋值。比如：</p>
+<pre><code class="language-plain_text">float(vec3) // 这里会取vec3的第一个值进行赋值
+</code></pre>
+<h4><a id="%E5%90%91%E9%87%8F%E5%92%8C%E7%9F%A9%E9%98%B5%E7%9A%84%E6%9E%84%E9%80%A0%E5%87%BD%E6%95%B0" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>向量和矩阵的构造函数</h4>
+<p>非标量的构造函数可以根据一些标量进行初始化。</p>
+<p>对于一个向量来说，如果只传一个标量给构造函数，则向量的每个元素都会被赋值成这个标量。</p>
+<p>对于一个矩阵来说，如果只传一个标量给构造函数，则矩阵的对角线的元素会被赋值成这个标量，其他值会被赋成0。</p>
+<p>向量的构造函数可以接受多个标量、向量，或者他们的混合。该向量的元素会以此被赋值，从参数列表从左到右依次被使用，并且每个非标量参数的每个元素都会被挨个依次使用。</p>
+<p>对于矩阵的构造函数来说，也可以接收多个标量、向量、矩阵，或者他们的混合。矩阵构造或被使用时按照<em>列优先</em>的方式。</p>
+<p>不管是向量还是矩阵，参数包含的元素的数量一定要大于等于向量的元素个数。但是当向量或矩阵的元素已经被全部赋值后，如果还有未被使用的参数，就会报错。</p>
+<p>矩阵的构造函数也可以传入一个矩阵，这时参数的每一个元素（第i行，第j列）会赋值到矩阵对应的元素（第i行，第j列）上，矩阵其余未赋值的元素被赋值成单位矩阵。如果矩阵的构造函数的参数包含了矩阵，则不能同时有其他参数。</p>
+<p>向量构造函数举例：</p>
+<pre><code class="language-plain_text">vec3(float) // initializes each component of with the float
+vec4(ivec4) // makes a vec4 with component-wise conversion
+vec2(float, float) // initializes a vec2 with 2 floats
+ivec3(int, int, int) // initializes an ivec3 with 3 ints
+bvec4(int, int, float, float) // uses 4 Boolean conversions
+vec2(vec3) // drops the third component of a vec3
+vec3(vec4) // drops the fourth component of a vec4
+vec3(vec2, float) // vec3.x = vec2.x, vec3.y = vec2.y, vec3.z = float
+vec3(float, vec2) // vec3.x = float, vec3.y = vec2.x, vec3.z = vec2.y
+vec4(vec3, float)
+vec4(float, vec3)
+vec4(vec2, vec2)
+vec4 color = vec4(0.0, 1.0, 0.0, 1.0);
+vec4 rgba = vec4(1.0); // sets each component to 1.0
+vec3 rgb = vec3(color); // drop the 4th component
+</code></pre>
+<p>下面几个矩阵初始化的例子，对角线会设置成参数的值，其他元素设成0：</p>
+<pre><code class="language-plain_text">mat2(float)
+mat3(float)
+mat4(float)
+</code></pre>
+<p>矩阵的初始化的例子：</p>
+<pre><code class="language-plain_text">mat2(vec2, vec2);
+mat3(vec3, vec3, vec3);
+mat4(vec4, vec4, vec4, vec4);
+mat2(float, float,
+float, float);
+mat3(float, float, float,
+float, float, float,
+float, float, float);
+mat4(float, float, float, float,
+float, float, float, float,
+float, float, float, float,
+float, float, float, float);
+</code></pre>
+<p>当然，初始化的例子多种多样，只要符合原则即可。</p>
+<h4><a id="%E7%BB%93%E6%9E%84%E4%BD%93%E7%9A%84%E6%9E%84%E9%80%A0%E5%87%BD%E6%95%B0" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>结构体的构造函数</h4>
+<p>结构体的构造函数比较简单，举例：</p>
+<pre><code class="language-plain_text">struct light {
+float intensity;
+vec3 position;
+};
+light lightVar = light(3.0, vec3(1.0, 2.0, 3.0));
+</code></pre>
+<p>如上，只需要传入的参数的顺序和结构体中变量声明的顺序完全一致即可。</p>
+<h4><a id="%E5%90%91%E9%87%8F%E7%9A%84%E5%85%83%E7%B4%A0" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>向量的元素</h4>
+<p>我们知道一个向量由多个元素组成，比如<em>vec3</em>里有三个元素，我们可以通过三种方式来操作这些元素。</p>
+<p>向量在OpenGL中可以代表一个坐标系中的坐标，也可以代表一个颜色，也可以代表texture的坐标。所以GLSL提供了三种方式来操作向量中的元素：</p>
+<table>
+<thead>
+<tr>
+<th>操作方式</th>
+<th>场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>{x, y, z, w}</td>
+<td>向量代表着坐标或法线的时候用这个</td>
+</tr>
+<tr>
+<td>{r, g, b, a}</td>
+<td>向量代表着一个颜色值的时候用这个</td>
+</tr>
+<tr>
+<td>{s, t, p, q}</td>
+<td>向量代表着texture的坐标的时候用这个</td>
+</tr>
+</tbody>
+</table>
+<p>其实这三种方式是完全一样的，只是GLSL为了让代码可阅读性更高，根据向量的不同应用场景，提供了三种不同的操作方式。比如<em>vec3.x</em>、<em>vec3.r</em>、<em>vec3.s</em>是完全一样的，都是指代向量的第一个元素。只是在不同场景选用不同的方式会使代码可阅读性更好而已。</p>
+<p>除了获取向量中的某一个元素的值以外，GLSL还提供了更方便的方法同时获取多个值：</p>
+<pre><code class="language-plain_text">vec4 v4;
+v4.rgba; // is a vec4 and the same as just using v4,
+v4.rgb; // is a vec3,
+v4.b; // is a float,
+v4.xy; // is a vec2,
+v4.xgba; // is illegal - the component names do not come from
+// the same set.
+</code></pre>
+<p>但是最多只能获取四个值，举例：</p>
+<pre><code class="language-plain_text">vec4 v4;
+v4.xyzw; // is a vec4
+v4.xyzwxy; // is illegal since it has 6 components
+(v4.xyzwxy).xy; // is illegal since the intermediate value has 6 components
+vec2 v2;
+v2.xyxy; // is legal. It evaluates to a vec4.
+</code></pre>
+<p>获取元素的值的时候可以任意组合，比如：</p>
+<pre><code class="language-plain_text">vec4 pos = vec4(1.0, 2.0, 3.0, 4.0);
+vec4 swiz= pos.wzyx; // swiz = (4.0, 3.0, 2.0, 1.0)
+vec4 dup = pos.xxyy; // dup = (1.0, 1.0, 2.0, 2.0)
+</code></pre>
+<p>除了读取向量的元素值意外，也可以通过这种方式进行写操作，例如：</p>
+<pre><code class="language-plain_text">vec4 pos = vec4(1.0, 2.0, 3.0, 4.0);
+pos.xw = vec2(5.0, 6.0); // pos = (5.0, 2.0, 3.0, 6.0)
+pos.wx = vec2(7.0, 8.0); // pos = (8.0, 2.0, 3.0, 7.0)
+pos.xx = vec2(3.0, 4.0); // illegal - 'x' used twice
+pos.xy = vec3(1.0, 2.0, 3.0); // illegal - mismatch between vec2 and vec3
+</code></pre>
+<p>除了上面这三种方式以外，GLSL还提供了类似访问数组下标的形式来访问向量的元素。</p>
+<pre><code class="language-plain_text">vec4 pos;
+pos[0] = 1; // 将向量的第一个元素设为0
+</code></pre>
+<h4><a id="%E7%9F%A9%E9%98%B5%E7%9A%84%E5%85%83%E7%B4%A0" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>矩阵的元素</h4>
+<p>操作矩阵的元素也很简单，可以把矩阵当成一个列优先的二维数组。</p>
+<pre><code class="language-plain_text">mat4 m;
+m[1] = vec4(2.0); // 设置第二列的元素全部为2.0
+m[0][0] = 1.0; // 设置左上角的元素为1.0
+m[2][3] = 2.0; // 设置第三列的第四个元素为2.0
+</code></pre>
+<p>和C++中用二维数组表示矩阵时的操作相同。</p>
+<h4><a id="%E7%BB%93%E6%9E%84%E4%BD%93%E7%9A%84%E5%85%83%E7%B4%A0" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>结构体的元素</h4>
+<p>对结构体的基本操作有三种：</p>
+<table>
+<thead>
+<tr>
+<th>操作</th>
+<th>符号</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>选择元素</td>
+<td>.</td>
+</tr>
+<tr>
+<td>相等性比较</td>
+<td>== !=</td>
+</tr>
+<tr>
+<td>赋值</td>
+<td>=</td>
+</tr>
+</tbody>
+</table>
+<p>对于选择元素来说，没啥好讲的。</p>
+<p>对于相等性比较，GLSL中，判断两个结构体是否相等，首先要求这两个结构体的class是一样的。两个结构体相等当且仅当这两个结构体中的每一个元素都相等。</p>
+<p>赋值和相等性判断不适用于包含数组或<em>simpler</em>的结构体。</p>
+<pre><code class="language-plain_text">Struct S {int x;};
+S a;
+{
+struct S {int x;};
+S b;
+a = b; // error: type mismatch
+}
+</code></pre>
+<h4><a id="%E8%B5%8B%E5%80%BC" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>赋值</h4>
+<p>GLSL中的赋值操作，表达式左右两边的类型要完全一致，因为GLSL中没有类型转换，如果想转换类型，必须通过在构造函数中传参的形式实现。</p>
+<p>除了基本的赋值操作，还有一些操作，比如*+=<em>、</em>-=<em>、**=</em> 、 */=*等等。</p>
+<h4><a id="%E7%9F%A9%E9%98%B5%E5%92%8C%E5%90%91%E9%87%8F%E6%93%8D%E4%BD%9C" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>矩阵和向量操作</h4>
+<p>一般来说，矩阵以及向量的操作都是针对其中的元素进行操作。比如：</p>
+<pre><code class="language-plain_text">vec3 v, u;
+float f;
+v = u + f;
+</code></pre>
+<p>和下面的操作完全相等：</p>
+<pre><code class="language-plain_text">v.x = u.x + f;
+v.y = u.y + f;
+v.z = u.z + f;
+</code></pre>
+<p>再举个例子：</p>
+<pre><code class="language-plain_text">vec3 v, u, w;
+w = v + u;
+</code></pre>
+<p>上面的操作和下面的操作完全相等：</p>
+<pre><code class="language-plain_text">w.x = v.x + u.x;
+w.y = v.y + u.y;
+w.z = v.z + u.z;
+</code></pre>
+<p>但是有例外，当矩阵和矩阵相乘、矩阵和向量相乘，则是按照线性代数的规则相乘。</p>
+<p>例如：</p>
+<pre><code class="language-plain_text">vec3 v, u;
+mat3 m;
+u = v * m;
+</code></pre>
+<p>等同于</p>
+<pre><code class="language-plain_text">u.x = dot(v, m[0]); // m[0] is the left column of m
+u.y = dot(v, m[1]); // dot(a,b) is the inner (dot) product of a and b
+u.z = dot(v, m[2]);
+</code></pre>
+<p>再例如：</p>
+<pre><code class="language-plain_text">u = m * v;
+</code></pre>
+<p>等同于</p>
+<pre><code class="language-plain_text">u.x = m[0].x * v.x + m[1].x * v.y + m[2].x * v.z;
+u.y = m[0].y * v.x + m[1].y * v.y + m[2].y * v.z;
+u.z = m[0].z * v.x + m[1].z * v.y + m[2].z * v.z;
+</code></pre>
+<p>再例如：</p>
+<pre><code class="language-plain_text">mat m, n, r;
+r = m * n;
+</code></pre>
+<p>等同于</p>
+<pre><code class="language-plain_text">r[0].x = m[0].x * n[0].x + m[1].x * n[0].y + m[2].x * n[0].z;
+r[1].x = m[0].x * n[1].x + m[1].x * n[1].y + m[2].x * n[1].z;
+r[2].x = m[0].x * n[2].x + m[1].x * n[2].y + m[2].x * n[2].z;
+r[0].y = m[0].y * n[0].x + m[1].y * n[0].y + m[2].y * n[0].z;
+r[1].y = m[0].y * n[1].x + m[1].y * n[1].y + m[2].y * n[1].z;
+r[2].y = m[0].y * n[2].x + m[1].y * n[2].y + m[2].y * n[2].z;
+r[0].z = m[0].z * n[0].x + m[1].z * n[0].y + m[2].z * n[0].z;
+r[1].z = m[0].z * n[1].x + m[1].z * n[1].y + m[2].z * n[1].z;
+r[2].z = m[0].z * n[2].x + m[1].z * n[2].y + m[2].z * n[2].z;
+</code></pre>
+<p>总的来说，矩阵和向量二者之间的操作都是线性代数的操作，矩阵向量和标量之间的操作都是标量依次和矩阵向量的每一个元素依次操作。</p>
+<h4><a id="%E8%A1%A8%E8%BE%BE%E5%BC%8F%E6%B1%82%E5%80%BC" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>表达式求值</h4>
+<p>c++标准要求表达式必须按照优先级指定的顺序进行计算。如果结果相同或结果未定义，则只能重新组合操作。没有其他的转换可以应用于影响操作的结果。GLSL ES放松了以下几点要求：</p>
+<ul>
+<li>加法和乘法被认为是相联的。</li>
+<li>乘法可以被重复的加法取代。</li>
+<li>除法可以用倒数和乘法来代替。</li>
+<li>值可以用比指定的更高的精度来表示。的约束内不变性(在适用的情况下)，使用的精度可能有所不同。</li>
+<li>整数值可以用浮点值表示。对这些值的操作可能是。由相应的浮点运算执行。</li>
+</ul>
+
+                </div>
+                <div class="content-responsive post-footer">
+                    <blockquote>
+                        转载请注明出处：<a href="https://wxdut.com/15271716271032.html">GLSL-运算符和表达式 - 专业点</a>
+                        <br><br>欢迎关注我的公众号<br><br>
+                        <img src="media/15196482316286/扫码_搜索联合传播样式-标准色版.png">
+                    </blockquote>
+                    <!-- <blockquote>我的博客会及时同步到腾讯云+社区，邀请大家一同入驻：
+                        <br><a href="https://cloud.tencent.com/developer/support-plan?invite_code=mqbbongvgxmp" target="__blank">https://cloud.tencent.com/developer/support-plan?invite_code=mqbbongvgxmp</a>
+                    </blockquote> -->
+                </div>
+            </div>
+            <!-- /.blog-post -->
+        </div>
+        <!-- /.blog-main -->
+        <!-- slider start --> <div class="col-sm-3 blog-sidebar">
+    <!-- <div class="sidebar-module">
+        <h4>科学上网</h4>
+        <a href="http://order.yizhihongxing2017.com/aff.php?aff=9247" target="_blank">
+            <img src="https://cdn.wxdut.com/asset/img/yzhx_232_215.jpg" >
+        </a>
+    </div> -->
+    <div class="sidebar-module">
+        <h4>分类</h4>
+        
+            <a href="%E8%B7%A8%E5%B9%B3%E5%8F%B0.html">跨平台&nbsp;(4)</a><br>
+        
+            <a href="iOS.html">iOS&nbsp;(14)</a><br>
+        
+            <a href="Android.html">Android&nbsp;(2)</a><br>
+        
+            <a href="%E6%B8%B2%E6%9F%93.html">渲染&nbsp;(9)</a><br>
+        
+            <a href="%E9%9F%B3%E8%A7%86%E9%A2%91.html">音视频&nbsp;(2)</a><br>
+        
+            <a href="%E6%95%88%E7%8E%87%E6%8F%90%E5%8D%87.html">效率提升&nbsp;(4)</a><br>
+        
+            <a href="%E5%85%B6%E4%BB%96.html">其他&nbsp;(1)</a><br>
+        
+    </div>
+    <div class="sidebar-module" id="sidebar-recent-article">
+        <h4>最近文章</h4>  
+         <a href="16887976127793.html">Android so 动态库相关知识</a>
+            <br />   
+         <a href="16886092802260.html">浅谈大前端跨端方案</a>
+            <br />   
+         <a href="16826065078832.html">如何把家里宽带配置为云服务器</a>
+            <br />   
+         <a href="16788697947776.html">iOS 内存分析 - Allocations</a>
+            <br />   
+         <a href="16782743400583.html">XCode Instruments 使用</a>
+            <br />   
+         <a href="16749127493537.html">LLDB - 源码调试工具</a>
+            <br />   
+         <a href="16748972547111.html">浅谈 C/C++ 编译流程和常见编译器</a>
+            <br />   
+         <a href="16729723756811.html">iOS framework 静态库相关知识</a>
+            <br />   
+         <a href="16705731655475.html">CMake 实用指南</a>
+            <br />   
+         <a href="16680671661314.html">一分钟下载最新 XCode</a>
+            <br />   
+          
+          
+          
+          
+          
+          
+          
+          
+          
+         
+    </div>
+    <div class="sidebar-module">
+        <h4>推荐</h4>
+        <a href="https://wxdut.com/world">
+            <img src="https://qiniu.wxdut.com/mweb/16645116745782.jpg">
+        </a>
+    </div>
+    <div class="sidebar-module sidebar-toc" id="sidebar-toc" style="display: none;">
+        <h4>目录</h4>
+        <div id="toc" style="margin-left: 0em;"></div>
+    </div>
+    <div class="sidebar-module">
+        <h4>公众号推荐</h4>
+        欢迎关注我的公众号<br>一起愉快的交流。<br><br>
+
+        <img src="media/15196482316286/扫码_搜索联合传播样式-白色版.png">
+    </div>
+</div>
+<!-- /.blog-sidebar -->
+</div>
+<!-- /.row -->
+</div>
+<!-- /.container --> <link rel="stylesheet" href="asset/gitalk/gitalk.css">
+<script src="asset/gitalk/gitalk.min.js"></script>
+<!-- gitalk -->
+<div class="container markdown-body" id="gitalk-container" ></div>
+
+<!-- footer -->
+<footer class="blog-footer">
+    <p>
+        ©2022 <a target="_blank" href="http://wxdut.com">Wxdut.com</a>. All rights reserved.
+    </p>
+    <p>
+        <a href="https://beian.miit.gov.cn/">粤ICP备17041161号-1</a>
+    </p>
+    <p>
+        <a href="#">Back to top</a>
+    </p>
+</footer>
+<!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
+<script src="asset/js/ie10-viewport-bug-workaround.js"></script>
+<script type="text/javascript" src="asset/js/footer.html.js"></script>
+<!-- MWeb 会把下面这一行注释换成 section-chart-support.html 的内容，我只能说操作太骚。。 -->
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="asset/prism.js"></script>
+
+  
+</body>
+
+</html>

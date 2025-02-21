@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" sizes="32x32" href="asset/img/favicon.png" />
+    <link rel="shortcut icon" href="asset/img/favicon.png" type="image/png" />
+    <link href="atom.xml" rel="alternate" title="专业点" type="application/atom+xml">
+    <title>
+         iOS framework 静态库相关知识 - 专业点 
+    </title>
+    <script src="asset/js/jquery-3.3.1.min.js"></script>
+    <script src="asset/js/popper.min.js"></script>
+    <script src="asset/js/darkreader.min.js"></script>
+    <link href="asset/css/mweb-github.css" rel="stylesheet" type="text/css">
+    <link href="asset/css/style.css" rel="stylesheet" type="text/css">
+    <script src="asset/highlightjs/highlight.pack.js"></script>
+    <link href="asset/highlightjs/styles/github.css" media="screen, projection" rel="stylesheet" type="text/css">
+    <link href="asset/bootstrap-4.2.1-dist/css/bootstrap.min.css" rel="stylesheet" type="text/css">
+    <script src="asset/bootstrap-4.2.1-dist/js/bootstrap.min.js"></script>
+    <link href="asset/bootstrap-select-1.13.2/css/bootstrap-select.min.css" rel="stylesheet" type="text/css">
+    <script src="asset/bootstrap-select-1.13.2/js/bootstrap-select.min.js"></script>
+
+    <script>
+        hljs.initHighlightingOnLoad();
+        DarkReader.enable();
+    </script>
+    <!--[if lt IE 9]>
+      <script src="asset/js/html5shiv.min.js"></script>
+    <![endif]-->
+</head>
+
+<body>
+    <div class="blog-masthead">
+        <div class="container">
+            <nav class="blog-nav">
+                
+                    <a class="blog-nav-item" id="/" href="/">博客</a> 
+                
+                    <a class="blog-nav-item" id="archives.html" href="archives.html">归档</a> 
+                
+                    <a class="blog-nav-item" id="tools.html" href="tools.html">工具</a> 
+                
+                    <a class="blog-nav-item" id="about.html" href="about.html">关于</a> 
+                
+            </nav>
+        </div>
+    </div>
+    
+
+    <script type="text/javascript" src="asset/js/header.html.js"></script> <script type="text/javascript">
+$(function() {
+    $('16729723756811.html').addClass('active');
+});
+</script>
+<div class="container markdown-body" id="content-wrap">
+    <div class="row">
+        <div class="col-sm-9 blog-main">
+            <div class="blog-post">
+                <h2 class="blog-post-title">iOS framework 静态库相关知识</h2>
+                <p class="blog-post-meta">2023/1/6 &nbsp;posted in  
+                    <a class='category' href='%E8%B7%A8%E5%B9%B3%E5%8F%B0.html'>跨平台</a>&nbsp; 
+                    <a class='category' href='iOS.html'>iOS</a>&nbsp;   
+                </p>
+                <div class="content-responsive" id="post-content">
+                    <p>以 OpenCV 为例，介绍一些常见的二进制库工具。</p>
+<span id="more"></span><!-- more -->
+<h2><a id="%E6%9F%A5%E7%9C%8B%E6%9E%B6%E6%9E%84" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>查看架构</h2>
+<p>可以使用 <code>file</code> 命令查看支持的架构，也可以看到是静态库还是动态库。</p>
+<p><img src="media/16729723756811/16743734279794.jpg" alt="" /></p>
+<p>当然 <code>file</code> 命令还可以用来查看其他文件的一些基本参数，比如查看一个音频文件的参数 👇🏻</p>
+<p><img src="media/16729723756811/16743735151303.jpg" alt="" /><br />
+可以看到这个 <code>wav</code> 音频是一个小端存储、采样数据格式为 PCM、16 位深、采样率 48000。</p>
+<h2><a id="%E6%9F%A5%E7%9C%8B%E7%AC%A6%E5%8F%B7" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>查看符号</h2>
+<p>查看一个二进制文件的符号可以使用 <code>nm</code> 命令。</p>
+<p><img src="media/16729723756811/16743738559896.jpg" alt="" /><br />
+<img src="media/16729723756811/16743738681338.jpg" alt="" /></p>
+<p>一个比较常见的操作是配合 <code>grep</code> 来查找过滤某些符号 👇🏻</p>
+<pre><code class="language-plain_text">nm opencv2.framework/opencv2 | grep CodedOutputStream
+</code></pre>
+<p><img src="media/16729723756811/16743740280262.jpg" alt="" /></p>
+<p><code>nm</code> 的输出里，除了能看到具体符号外，符号的左侧还有个字母，比如 <code>U</code>、<code>S</code> 等，代表该符号的类型。</p>
+<table>
+<thead>
+<tr>
+<th>符号类型</th>
+<th>解释</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A</td>
+<td>Absolute symbol, global</td>
+</tr>
+<tr>
+<td>a</td>
+<td>Absolute symbol, local</td>
+</tr>
+<tr>
+<td>B</td>
+<td>Uninitialized data (bss), global</td>
+</tr>
+<tr>
+<td>b</td>
+<td>Uninitialized data (bss), local</td>
+</tr>
+<tr>
+<td>D</td>
+<td>Initialized data (bbs), global</td>
+</tr>
+<tr>
+<td>d</td>
+<td>Initialized data (bbs), local</td>
+</tr>
+<tr>
+<td>F</td>
+<td>File name</td>
+</tr>
+<tr>
+<td>l</td>
+<td>Line number entry (see the –a option)</td>
+</tr>
+<tr>
+<td>N</td>
+<td>No defined type, global. This is an unspecified type, compared to the undefined type U.</td>
+</tr>
+<tr>
+<td>U</td>
+<td>No defined type, local. This is an unspecified type, compared to the undefined type U.</td>
+</tr>
+<tr>
+<td>S</td>
+<td>Section symbol, global</td>
+</tr>
+<tr>
+<td>s</td>
+<td>Section symbol, local</td>
+</tr>
+<tr>
+<td>T</td>
+<td>Text symbol, global</td>
+</tr>
+<tr>
+<td>t</td>
+<td>Text symbol, local (static)</td>
+</tr>
+<tr>
+<td>U</td>
+<td>Undefined symbol</td>
+</tr>
+</tbody>
+</table>
+<p>类型较多，不过其实一般只需要记住这两个基本原则：</p>
+<ol>
+<li>大写字母代表 <code>global</code> 符号，小写字母代表 <code>local</code> 符号</li>
+<li><code>U</code> 这种符号是 <code>undefined</code>，很多时候链接时找不到符号有可能是这里的问题：虽然有符号，但是符号是 <code>Undefined</code></li>
+</ol>
+<p>因为经常同一个库支持多个架构，我们还可以限制只打印某个架构的符号 👇🏻</p>
+<pre><code class="language-plain_text">nm --arch arm64 opencv2.framework/opencv2
+</code></pre>
+<h2><a id="%E5%AF%BC%E5%87%BA%E5%92%8C%E6%9F%A5%E7%9C%8Bdwarf" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>导出和查看 DWARF</h2>
+<p>DWARF 的全称是 debugging with attributed record formats，是一种源码调试信息的格式，iOS 经常用到，之前已经单独写了文章，想起可以参考 <a href="16643337564362.html">iOS 符号之 DWARF 和 dSYM</a>。</p>
+<p>主要是用 <code>dsymutil</code> 导出调试符号文件，然后用 <code>dwarfdump</code> 查看。</p>
+<h2><a id="%E5%A4%9A%E6%9E%B6%E6%9E%84%E6%8B%86%E5%88%86%E3%80%81%E5%90%88%E5%B9%B6" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>多架构拆分、合并</h2>
+<p>一个库可能支持多个架构，比如 <code>arm64</code>、<code>x86_64</code> 等等，我们可以使用 <code>lipo</code> 做一些拆分合并操作。</p>
+<h3><a id="%E6%8B%86%E5%88%86%E5%A4%9A%E6%9E%B6%E6%9E%84%E5%BA%93" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>拆分多架构库</h3>
+<p>将某个多架构库的其中某个架构的内容抽成独立的库。</p>
+<pre><code class="language-plain_text">lipo -extract arch_type file
+</code></pre>
+<p>🌰 👇🏻：</p>
+<pre><code class="language-plain_text">lipo -remove x86_64 opencv2.framework/opencv2 -output openCV2_arm64
+</code></pre>
+<p>注意，通过上面的方式得到的库还是多架构库，只是只包含一种架构。</p>
+<p>如果想获得一个单架构库可以通过下面的方式 👇🏻</p>
+<pre><code class="language-plain_text">lipo -thin arch_type &lt;input&gt; -output output
+</code></pre>
+<p>🌰 👇🏻：</p>
+<pre><code class="language-plain_text">lipo -thin arm64 opencv2.framework/opencv2 -output openCV2_arm64_thin
+</code></pre>
+<h3><a id="%E7%A7%BB%E9%99%A4%E6%9F%90%E4%B8%AA%E6%9E%B6%E6%9E%84" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>移除某个架构</h3>
+<pre><code class="language-plain_text">lipo -remove arch_type &lt;input&gt; -output &lt;output&gt;
+</code></pre>
+<p>🌰 👇🏻：</p>
+<pre><code class="language-plain_text">lipo -remove x86_64 opencv2.framework/opencv2 -output openCV2_without_x86_64
+</code></pre>
+<h3><a id="%E5%A4%9A%E4%B8%AA%E5%BA%93%E5%90%88%E5%B9%B6%E6%88%90%E5%8D%95%E4%B8%AA%E5%A4%9A%E6%9E%B6%E6%9E%84%E5%BA%93" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>多个库合并成单个多架构库</h3>
+<pre><code class="language-plain_text">lipo -create &lt;input1&gt; &lt;input2&gt; ... -output opencv2.framework/opencv2
+</code></pre>
+<p>🌰 👇🏻：</p>
+<pre><code class="language-plain_text">lipo -create openCV2_arm64 openCV2_x86_64 -output opencv2.framework/opencv2
+</code></pre>
+<h2><a id="%E5%BA%93%E7%9A%84%E5%90%88%E5%B9%B6" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>库的合并</h2>
+<p>举个例子，如果你的 <code>Test.framework</code> 里用到了另一个 <code>Test.a</code>，一般来讲我们可以将 <code>Test.a</code> 合并到 <code>Test.framework</code> 里，这样使用方只需要理解和引用 <code>Test.framework</code> 就可以了，不需要关心 <code>Test.a</code> 的存在。</p>
+<p>我们可以通过下面这个方式合并：</p>
+<pre><code class="language-plain_text">// 创建静态库
+libtool -static -o output input1 input2 input3 ...
+// 创建动态库
+libtool -dynamic -o output input1 input2 input3 ...
+</code></pre>
+<pre><code class="language-plain_text">libtool -static -o Test.framework/wxaudio Test.a Test.framework/wxaudio
+</code></pre>
+<p>此外，一些常见的参数如下：</p>
+<table>
+<thead>
+<tr>
+<th>参数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>-v</td>
+<td>详细模式，会把执行细节打印出来，方便查问题</td>
+</tr>
+<tr>
+<td>-arch_only</td>
+<td>只合并某个架构，其他架构会被忽略</td>
+</tr>
+</tbody>
+</table>
+
+                </div>
+                <div class="content-responsive post-footer">
+                    <blockquote>
+                        转载请注明出处：<a href="https://wxdut.com/16729723756811.html">iOS framework 静态库相关知识 - 专业点</a>
+                        <br><br>欢迎关注我的公众号<br><br>
+                        <img src="media/15196482316286/扫码_搜索联合传播样式-标准色版.png">
+                    </blockquote>
+                    <!-- <blockquote>我的博客会及时同步到腾讯云+社区，邀请大家一同入驻：
+                        <br><a href="https://cloud.tencent.com/developer/support-plan?invite_code=mqbbongvgxmp" target="__blank">https://cloud.tencent.com/developer/support-plan?invite_code=mqbbongvgxmp</a>
+                    </blockquote> -->
+                </div>
+            </div>
+            <!-- /.blog-post -->
+        </div>
+        <!-- /.blog-main -->
+        <!-- slider start --> <div class="col-sm-3 blog-sidebar">
+    <!-- <div class="sidebar-module">
+        <h4>科学上网</h4>
+        <a href="http://order.yizhihongxing2017.com/aff.php?aff=9247" target="_blank">
+            <img src="https://cdn.wxdut.com/asset/img/yzhx_232_215.jpg" >
+        </a>
+    </div> -->
+    <div class="sidebar-module">
+        <h4>分类</h4>
+        
+            <a href="%E8%B7%A8%E5%B9%B3%E5%8F%B0.html">跨平台&nbsp;(4)</a><br>
+        
+            <a href="iOS.html">iOS&nbsp;(14)</a><br>
+        
+            <a href="Android.html">Android&nbsp;(2)</a><br>
+        
+            <a href="%E6%B8%B2%E6%9F%93.html">渲染&nbsp;(9)</a><br>
+        
+            <a href="%E9%9F%B3%E8%A7%86%E9%A2%91.html">音视频&nbsp;(2)</a><br>
+        
+            <a href="%E6%95%88%E7%8E%87%E6%8F%90%E5%8D%87.html">效率提升&nbsp;(4)</a><br>
+        
+            <a href="%E5%85%B6%E4%BB%96.html">其他&nbsp;(1)</a><br>
+        
+    </div>
+    <div class="sidebar-module" id="sidebar-recent-article">
+        <h4>最近文章</h4>  
+         <a href="16887976127793.html">Android so 动态库相关知识</a>
+            <br />   
+         <a href="16886092802260.html">浅谈大前端跨端方案</a>
+            <br />   
+         <a href="16826065078832.html">如何把家里宽带配置为云服务器</a>
+            <br />   
+         <a href="16788697947776.html">iOS 内存分析 - Allocations</a>
+            <br />   
+         <a href="16782743400583.html">XCode Instruments 使用</a>
+            <br />   
+         <a href="16749127493537.html">LLDB - 源码调试工具</a>
+            <br />   
+         <a href="16748972547111.html">浅谈 C/C++ 编译流程和常见编译器</a>
+            <br />   
+         <a href="16729723756811.html">iOS framework 静态库相关知识</a>
+            <br />   
+         <a href="16705731655475.html">CMake 实用指南</a>
+            <br />   
+         <a href="16680671661314.html">一分钟下载最新 XCode</a>
+            <br />   
+          
+          
+          
+          
+          
+          
+          
+          
+          
+         
+    </div>
+    <div class="sidebar-module">
+        <h4>推荐</h4>
+        <a href="https://wxdut.com/world">
+            <img src="https://qiniu.wxdut.com/mweb/16645116745782.jpg">
+        </a>
+    </div>
+    <div class="sidebar-module sidebar-toc" id="sidebar-toc" style="display: none;">
+        <h4>目录</h4>
+        <div id="toc" style="margin-left: 0em;"></div>
+    </div>
+    <div class="sidebar-module">
+        <h4>公众号推荐</h4>
+        欢迎关注我的公众号<br>一起愉快的交流。<br><br>
+
+        <img src="media/15196482316286/扫码_搜索联合传播样式-白色版.png">
+    </div>
+</div>
+<!-- /.blog-sidebar -->
+</div>
+<!-- /.row -->
+</div>
+<!-- /.container --> <link rel="stylesheet" href="asset/gitalk/gitalk.css">
+<script src="asset/gitalk/gitalk.min.js"></script>
+<!-- gitalk -->
+<div class="container markdown-body" id="gitalk-container" ></div>
+
+<!-- footer -->
+<footer class="blog-footer">
+    <p>
+        ©2022 <a target="_blank" href="http://wxdut.com">Wxdut.com</a>. All rights reserved.
+    </p>
+    <p>
+        <a href="https://beian.miit.gov.cn/">粤ICP备17041161号-1</a>
+    </p>
+    <p>
+        <a href="#">Back to top</a>
+    </p>
+</footer>
+<!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
+<script src="asset/js/ie10-viewport-bug-workaround.js"></script>
+<script type="text/javascript" src="asset/js/footer.html.js"></script>
+<!-- MWeb 会把下面这一行注释换成 section-chart-support.html 的内容，我只能说操作太骚。。 -->
+
+
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">MathJax.Hub.Config({TeX: { equationNumbers: { autoNumber: "AMS" } }});</script>
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="asset/prism.js"></script>
+
+  
+</body>
+
+</html>
